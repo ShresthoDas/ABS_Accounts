@@ -1,0 +1,443 @@
+"use client";
+import { useAuth } from "../../context/AuthContext";
+import ProtectedRoute from "../../components/ProtectedRoute";
+import { useEffect, useState } from "react";
+import { getUserDoc } from "../../utils/getUserDoc";
+import { useRouter } from "next/navigation";
+import { db } from "../../firebase/config";
+import { ref, get, set, update, push } from "firebase/database";
+
+type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
+
+export default function AddMemberPage() {
+  const { user } = useAuth();
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+  const router = useRouter();
+
+  // Form state
+  const [date, setDate] = useState("");
+  const [receiptNumber, setReceiptNumber] = useState("");
+  const [name, setName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("");
+  const [secondaryMemberName, setSecondaryMemberName] = useState("");
+  const [address, setAddress] = useState("");
+  const [emailId, setEmailId] = useState("");
+  const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
+  const [chequeNumber, setChequeNumber] = useState("");
+  const [inputBy, setInputBy] = useState("");
+
+  // Validation errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (user) {
+      getUserDoc(user.uid)
+        .then((data) => {
+          setUserData(data);
+          if (data && data.name) {
+            setUserName(data.name);
+            setInputBy(data.name);
+          }
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [user]);
+
+  // Set current date as default and generate receipt number
+  useEffect(() => {
+    const today = new Date();
+    const formattedDate = today.toISOString().split("T")[0];
+    setDate(formattedDate);
+    
+    // Generate receipt number
+    generateReceiptNumber();
+  }, []);
+
+  const generateReceiptNumber = async () => {
+    try {
+      // Get current year in YY format
+      const currentYear = new Date().getFullYear().toString().slice(-2);
+      
+      // Reference to the receipt counter in Firebase
+      const receiptCounterRef = ref(db, `UAT/Accounts/MemberReceiptCounters/${currentYear}`);
+      const snapshot = await get(receiptCounterRef);
+      
+      let nextNumber = 1;
+      if (snapshot.exists()) {
+        nextNumber = snapshot.val() + 1;
+      }
+      
+      // Format: ABS/YY/number
+      const newReceiptNumber = `ABS/${currentYear}/${nextNumber}`;
+      setReceiptNumber(newReceiptNumber);
+    } catch (error) {
+      console.error("Error generating receipt number:", error);
+      // Fallback to a basic format if there's an error
+      const currentYear = new Date().getFullYear().toString().slice(-2);
+      setReceiptNumber(`ABS/${currentYear}/1`);
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!name.trim()) {
+      newErrors.name = "Name is mandatory";
+    }
+
+    if (!panNumber.trim()) {
+      newErrors.panNumber = "PAN Number is mandatory";
+    }
+
+    if (!address.trim()) {
+      newErrors.address = "Address is mandatory";
+    }
+
+    if (!emailId.trim()) {
+      newErrors.emailId = "Email ID is mandatory";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailId)) {
+      newErrors.emailId = "Please enter a valid email address";
+    }
+
+    if (!modeOfPayment) {
+      newErrors.modeOfPayment = "Please select a mode of payment";
+    }
+
+    if ((modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
+      newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (validateForm()) {
+      try {
+        const memberData = {
+          date,
+          receiptNumber,
+          name,
+          mobileNumber: mobileNumber || null,
+          panNumber,
+          secondaryMemberName: secondaryMemberName || null,
+          address,
+          emailId,
+          modeOfPayment,
+          chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+          inputBy,
+          createdAt: new Date().toISOString(),
+          createdBy: user?.uid,
+        };
+
+        // Save to Firebase with a unique key
+        const newMemberRef = push(ref(db, 'UAT/Accounts/Members'));
+        await set(newMemberRef, memberData);
+
+        // Update the receipt counter
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        const receiptCounterRef = ref(db, `UAT/Accounts/MemberReceiptCounters/${currentYear}`);
+        const counterSnapshot = await get(receiptCounterRef);
+        
+        if (counterSnapshot.exists()) {
+          await update(receiptCounterRef, { 
+            value: counterSnapshot.val() + 1 
+          });
+        } else {
+          await set(receiptCounterRef, { value: 1 });
+        }
+
+        console.log("Member Data:", memberData);
+        alert("Member added successfully!");
+
+        // Reset form and generate new receipt number
+        setName("");
+        setMobileNumber("");
+        setPanNumber("");
+        setSecondaryMemberName("");
+        setAddress("");
+        setEmailId("");
+        setModeOfPayment("");
+        setChequeNumber("");
+        setErrors({});
+        
+        // Generate new receipt number
+        generateReceiptNumber();
+        
+      } catch (error) {
+        console.error("Error saving member:", error);
+        alert("Error saving member. Please try again.");
+      }
+    }
+  };
+
+  const showChequeField = modeOfPayment === "Cheque" || modeOfPayment === "NEFT";
+
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div>Loading...</div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50 py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center mb-6">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="mr-4 text-blue-600 hover:text-blue-800"
+            >
+              ← Back to Dashboard
+            </button>
+            <h1 className="text-3xl font-bold">Add Member</h1>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Receipt Number - Auto generated */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Receipt Number
+                </label>
+                <input
+                  type="text"
+                  value={receiptNumber}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                />
+                <p className="mt-1 text-xs text-gray-500">Auto-generated unique receipt number</p>
+              </div>
+
+              {/* Name - Mandatory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.name ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="Enter member name"
+                />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                )}
+              </div>
+
+              {/* Mobile Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mobile Number
+                </label>
+                <input
+                  type="tel"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter mobile number"
+                  maxLength={10}
+                />
+              </div>
+
+              {/* PAN Number - Mandatory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  PAN Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.panNumber ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="Enter PAN number"
+                  maxLength={10}
+                />
+                {errors.panNumber && (
+                  <p className="mt-1 text-sm text-red-500">{errors.panNumber}</p>
+                )}
+              </div>
+
+              {/* Secondary Member Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Secondary Member Name
+                </label>
+                <input
+                  type="text"
+                  value={secondaryMemberName}
+                  onChange={(e) => setSecondaryMemberName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter secondary member name (if any)"
+                />
+              </div>
+
+              {/* Address - Mandatory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.address ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="Enter address"
+                  rows={3}
+                />
+                {errors.address && (
+                  <p className="mt-1 text-sm text-red-500">{errors.address}</p>
+                )}
+              </div>
+
+              {/* Email ID - Mandatory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={emailId}
+                  onChange={(e) => setEmailId(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    errors.emailId ? "border-red-500" : "border-gray-300"
+                  }`}
+                  placeholder="Enter email address"
+                />
+                {errors.emailId && (
+                  <p className="mt-1 text-sm text-red-500">{errors.emailId}</p>
+                )}
+              </div>
+
+              {/* Mode of Payment - Mandatory */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mode of Payment <span className="text-red-500">*</span>
+                </label>
+                <div className="flex space-x-6">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="modeOfPayment"
+                      value="Cash"
+                      checked={modeOfPayment === "Cash"}
+                      onChange={(e) => {
+                        setModeOfPayment(e.target.value as ModeOfPayment);
+                        setErrors({ ...errors, modeOfPayment: "" });
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-gray-700">Cash</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="modeOfPayment"
+                      value="Cheque"
+                      checked={modeOfPayment === "Cheque"}
+                      onChange={(e) => {
+                        setModeOfPayment(e.target.value as ModeOfPayment);
+                        setErrors({ ...errors, modeOfPayment: "" });
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-gray-700">Cheque</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="modeOfPayment"
+                      value="NEFT"
+                      checked={modeOfPayment === "NEFT"}
+                      onChange={(e) => {
+                        setModeOfPayment(e.target.value as ModeOfPayment);
+                        setErrors({ ...errors, modeOfPayment: "" });
+                      }}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-gray-700">NEFT</span>
+                  </label>
+                </div>
+                {errors.modeOfPayment && (
+                  <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>
+                )}
+              </div>
+
+              {/* Cheque Number - Conditionally visible and mandatory */}
+              {showChequeField && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cheque/Reference Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={chequeNumber}
+                    onChange={(e) => setChequeNumber(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      errors.chequeNumber ? "border-red-500" : "border-gray-300"
+                    }`}
+                    placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`}
+                  />
+                  {errors.chequeNumber && (
+                    <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Input By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Input By
+                </label>
+                <input
+                  type="text"
+                  value={inputBy}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div>
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                >
+                  Add Member
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </ProtectedRoute>
+  );
+}
