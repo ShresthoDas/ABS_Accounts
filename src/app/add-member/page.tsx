@@ -18,7 +18,7 @@ export default function AddMemberPage() {
 
   // Form state
   const [date, setDate] = useState("");
-  const [receiptNumber, setReceiptNumber] = useState("");
+  const [memberId, setmemberId] = useState("");
   const [name, setName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [panNumber, setPanNumber] = useState("");
@@ -53,17 +53,17 @@ export default function AddMemberPage() {
     setDate(formattedDate);
     
     // Generate receipt number
-    generateReceiptNumber();
+    generatememberId();
   }, []);
 
-  const generateReceiptNumber = async () => {
+  const generatememberId = async () => {
     try {
       // Get current year in YY format
       const currentYear = new Date().getFullYear().toString().slice(-2);
       
       // Reference to the receipt counter in Firebase
-      const receiptCounterRef = ref(db, `UAT/Accounts/MemberReceiptCounters/${currentYear}`);
-      const snapshot = await get(receiptCounterRef);
+      const memberCounterRef = ref(db, `UAT/Accounts/MemberCounter`);
+      const snapshot = await get(memberCounterRef);
       
       let nextNumber = 1;
       if (snapshot.exists()) {
@@ -71,13 +71,13 @@ export default function AddMemberPage() {
       }
       
       // Format: ABS/YY/number
-      const newReceiptNumber = `ABS/${currentYear}/${nextNumber}`;
-      setReceiptNumber(newReceiptNumber);
+      const newMemberNumber = `ABSPM-${nextNumber}`;
+      setmemberId(newMemberNumber);
     } catch (error) {
-      console.error("Error generating receipt number:", error);
+      console.error("Error generating Member number:", error);
       // Fallback to a basic format if there's an error
       const currentYear = new Date().getFullYear().toString().slice(-2);
-      setReceiptNumber(`ABS/${currentYear}/1`);
+      setmemberId(`ABSPM-1`);
     }
   };
 
@@ -121,7 +121,7 @@ export default function AddMemberPage() {
       try {
         const memberData = {
           date,
-          receiptNumber,
+          memberId,
           name,
           mobileNumber: mobileNumber || null,
           panNumber,
@@ -155,7 +155,7 @@ export default function AddMemberPage() {
         console.log("Member Data:", memberData);
         alert("Member added successfully!");
 
-        // Reset form and generate new receipt number
+        // Reset form and generate new member ID
         setName("");
         setMobileNumber("");
         setPanNumber("");
@@ -166,8 +166,8 @@ export default function AddMemberPage() {
         setChequeNumber("");
         setErrors({});
         
-        // Generate new receipt number
-        generateReceiptNumber();
+        // Generate new member ID for the next entry
+        generatememberId();
         
       } catch (error) {
         console.error("Error saving member:", error);
@@ -220,15 +220,15 @@ export default function AddMemberPage() {
               {/* Receipt Number - Auto generated */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Receipt Number
+                  Member ID
                 </label>
                 <input
                   type="text"
-                  value={receiptNumber}
+                  value={memberId}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
                 />
-                <p className="mt-1 text-xs text-gray-500">Auto-generated unique receipt number</p>
+                <p className="mt-1 text-xs text-gray-500">Auto-generated unique member ID</p>
               </div>
 
               {/* Name - Mandatory */}
