@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
+import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -28,6 +29,9 @@ export default function AddMemberPage() {
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState(false);
+  const [amount, setAmount] = useState("8000");
+  const [receiptNumber, setReceiptNumber] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,13 +50,13 @@ export default function AddMemberPage() {
     }
   }, [user]);
 
-  // Set current date as default and generate receipt number
+  // Set current date as default and generate member id
   useEffect(() => {
     const today = new Date();
     const formattedDate = today.toISOString().split("T")[0];
     setDate(formattedDate);
     
-    // Generate receipt number
+    // Generate member id
     generatememberId();
   }, []);
 
@@ -81,6 +85,26 @@ export default function AddMemberPage() {
     }
   };
 
+  const generateReceiptNumber = async () => {
+    try {
+      const currentYear = new Date().getFullYear().toString().slice(-2);
+      const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${currentYear}`);
+      const snapshot = await get(receiptCounterRef);
+      
+      let nextNumber = 1;
+      if (snapshot.exists()) {
+        nextNumber = snapshot.val() + 1;
+      }
+      
+      const newReceiptNumber = `ABS/${currentYear}/${nextNumber}`;
+      setReceiptNumber(newReceiptNumber);
+    } catch (error) {
+      console.error("Error generating receipt number:", error);
+      const currentYear = new Date().getFullYear().toString().slice(-2);
+      setReceiptNumber(`ABS/${currentYear}/1`);
+    }
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
@@ -102,11 +126,11 @@ export default function AddMemberPage() {
       newErrors.emailId = "Please enter a valid email address";
     }
 
-    if (!modeOfPayment) {
+    if (paymentStatus && !modeOfPayment) {
       newErrors.modeOfPayment = "Please select a mode of payment";
     }
 
-    if ((modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
+    if (paymentStatus && (modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
     }
 
@@ -119,7 +143,10 @@ export default function AddMemberPage() {
 
     if (validateForm()) {
       try {
-        const memberData = {
+        const currentYear = new Date().getFullYear().toString();
+        const incomeAmount = parseFloat(amount) || 0;
+
+        const memberData: Record<string, any> = {
           date,
           memberId,
           name,
@@ -128,28 +155,85 @@ export default function AddMemberPage() {
           secondaryMemberName: secondaryMemberName || null,
           address,
           emailId,
-          modeOfPayment,
-          chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+          paymentStatus,
           inputBy,
           createdAt: new Date().toISOString(),
           createdBy: user?.uid,
         };
 
+        if (paymentStatus) {
+          memberData.modeOfPayment = modeOfPayment;
+          memberData.amount = amount;
+          memberData.chequeNumber = modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null;
+        }
+
         // Save to Firebase with a unique key
-        const newMemberRef = push(ref(db, 'UAT/Accounts/Members'));
+        const newMemberRef = push(ref(db, `UAT/Accounts/${currentYear}/Members`));
+        const newMemberKey = newMemberRef.key;
+        memberData.key = newMemberKey;
         await set(newMemberRef, memberData);
 
-        // Update the receipt counter
-        const currentYear = new Date().getFullYear().toString().slice(-2);
-        const receiptCounterRef = ref(db, `UAT/Accounts/MemberReceiptCounters/${currentYear}`);
-        const counterSnapshot = await get(receiptCounterRef);
+        // Update the member counter
+        const memberCounterRef = ref(db, `UAT/Accounts/MemberCounter`);
+        const counterSnapshot = await get(memberCounterRef);
         
         if (counterSnapshot.exists()) {
-          await update(receiptCounterRef, { 
-            value: counterSnapshot.val() + 1 
-          });
+          await set(memberCounterRef, counterSnapshot.val() + 1);
         } else {
-          await set(receiptCounterRef, { value: 1 });
+          await set(memberCounterRef, 1);
+        }
+
+        // If payment is received, also record income, update total, generate receipt
+        if (paymentStatus) {
+          // Generate receipt number first
+          const receiptYear = new Date().getFullYear().toString().slice(-2);
+          const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${receiptYear}`);
+          const receiptSnap = await get(receiptCounterRef);
+          let nextReceiptNum = 1;
+          if (receiptSnap.exists()) {
+            nextReceiptNum = receiptSnap.val() + 1;
+          }
+          const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+
+          // Create income record
+          const newIncomeRef = push(ref(db, `UAT/Accounts/${currentYear}/Income`));
+          const incomeKey = newIncomeRef.key;
+
+          const incomeData = {
+            key: incomeKey,
+            date,
+            receiptNumber: newReceiptNumber,
+            name,
+            mobileNumber: mobileNumber || null,
+            panNumber,
+            amount: incomeAmount,
+            category: "Membership Fee",
+            modeOfPayment,
+            chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+            inputBy,
+            createdAt: new Date().toISOString(),
+            createdBy: user?.uid,
+            linkedMemberId: memberId,
+          };
+
+          await set(newIncomeRef, incomeData);
+
+          // Update total income
+          const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+          const totalSnapshot = await get(totalIncomeRef);
+          if (totalSnapshot.exists()) {
+            await set(totalIncomeRef, totalSnapshot.val() + incomeAmount);
+          } else {
+            await set(totalIncomeRef, incomeAmount);
+          }
+
+          // Update receipt counter
+          await set(receiptCounterRef, nextReceiptNum);
+
+          // Generate and download receipt PDF
+          generateReceiptPDF(incomeData);
+
+          console.log("Income Data from member payment:", incomeData);
         }
 
         console.log("Member Data:", memberData);
@@ -164,6 +248,9 @@ export default function AddMemberPage() {
         setEmailId("");
         setModeOfPayment("");
         setChequeNumber("");
+        setPaymentStatus(false);
+        setAmount("8000");
+        setReceiptNumber("");
         setErrors({});
         
         // Generate new member ID for the next entry
@@ -337,79 +424,121 @@ export default function AddMemberPage() {
                 )}
               </div>
 
-              {/* Mode of Payment - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mode of Payment <span className="text-red-500">*</span>
-                </label>
-                <div className="flex space-x-6">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="Cash"
-                      checked={modeOfPayment === "Cash"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-gray-700">Cash</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="Cheque"
-                      checked={modeOfPayment === "Cheque"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-gray-700">Cheque</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="NEFT"
-                      checked={modeOfPayment === "NEFT"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-gray-700">NEFT</span>
-                  </label>
+              {/* Payment Status - Checkbox */}
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    type="checkbox"
+                    id="paymentStatus"
+                    checked={paymentStatus}
+                    onChange={(e) => {
+                      setPaymentStatus(e.target.checked);
+                      if (!e.target.checked) {
+                        setModeOfPayment("");
+                        setChequeNumber("");
+                        setAmount("8000");
+                        setErrors({ ...errors, modeOfPayment: "", chequeNumber: "" });
+                      }
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
                 </div>
-                {errors.modeOfPayment && (
-                  <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>
-                )}
+                <label htmlFor="paymentStatus" className="ml-2 block text-sm font-medium text-gray-700">
+                  Payment Received
+                </label>
               </div>
 
-              {/* Cheque Number - Conditionally visible and mandatory */}
-              {showChequeField && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cheque/Reference Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={chequeNumber}
-                    onChange={(e) => setChequeNumber(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.chequeNumber ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`}
-                  />
-                  {errors.chequeNumber && (
-                    <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>
+              {/* Payment Details - Only visible when payment status is checked */}
+              {paymentStatus && (
+                <>
+                  {/* Mode of Payment - Mandatory */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mode of Payment <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="modeOfPayment"
+                          value="Cash"
+                          checked={modeOfPayment === "Cash"}
+                          onChange={(e) => {
+                            setModeOfPayment(e.target.value as ModeOfPayment);
+                            setErrors({ ...errors, modeOfPayment: "" });
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700">Cash</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="modeOfPayment"
+                          value="Cheque"
+                          checked={modeOfPayment === "Cheque"}
+                          onChange={(e) => {
+                            setModeOfPayment(e.target.value as ModeOfPayment);
+                            setErrors({ ...errors, modeOfPayment: "" });
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700">Cheque</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="modeOfPayment"
+                          value="NEFT"
+                          checked={modeOfPayment === "NEFT"}
+                          onChange={(e) => {
+                            setModeOfPayment(e.target.value as ModeOfPayment);
+                            setErrors({ ...errors, modeOfPayment: "" });
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700">NEFT</span>
+                      </label>
+                    </div>
+                    {errors.modeOfPayment && (
+                      <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>
+                    )}
+                  </div>
+
+                  {/* Amount - Default 8000, editable */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Cheque Number - Conditionally visible and mandatory */}
+                  {showChequeField && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cheque/Reference Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={chequeNumber}
+                        onChange={(e) => setChequeNumber(e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                          errors.chequeNumber ? "border-red-500" : "border-gray-300"
+                        }`}
+                        placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`}
+                      />
+                      {errors.chequeNumber && (
+                        <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               {/* Input By */}
