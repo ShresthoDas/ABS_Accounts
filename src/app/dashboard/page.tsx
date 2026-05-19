@@ -141,6 +141,19 @@ export default function DashboardPage() {
                       Add Member
                     </button>
                   )}
+                  
+                  {/* Member List Button - Only visible for Accounts or GB users */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push("/member-list")}
+                      className="bg-purple-600 text-white px-6 py-3 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                      Member List
+                    </button>
+                  )}
                 </div>
               </div>
 
