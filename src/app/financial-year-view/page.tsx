@@ -6,52 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-
-interface IncomeItem {
-  key: string;
-  date?: string;
-  receiptNumber?: string;
-  name?: string;
-  mobileNumber?: string | null;
-  panNumber?: string;
-  amount?: number;
-  category?: string;
-  modeOfPayment?: string;
-  chequeNumber?: string | null;
-  inputBy?: string;
-  createdBy?: string;
-  createdAt?: string;
-}
-
-interface ExpenseItem {
-  key: string;
-  date?: string;
-  billNumber?: string;
-  name?: string;
-  amount?: number;
-  category?: string;
-  [key: string]: any; // Allow additional fields for varying record structures
-}
-
-interface MemberItem {
-  key: string;
-  memberId?: string;
-  name?: string;
-  paymentStatus?: boolean;
-  date?: string;
-  mobileNumber?: string | null;
-  panNumber?: string;
-  secondaryMemberName?: string | null;
-  address?: string;
-  emailId?: string;
-  modeOfPayment?: string;
-  amount?: string;
-  chequeNumber?: string | null;
-  inputBy?: string;
-  createdBy?: string;
-  createdAt?: string;
-  [key: string]: any; // Allow additional fields for varying record structures
-}
+import { dbPath, DB_PATHS, ROUTES, hasAccess, YEAR_KEY_REGEX, formatFinancialYear, getCurrentYearString } from "../../utils/constants";
 
 interface SectionState {
   expanded: boolean;
@@ -65,7 +20,7 @@ export default function FinancialYearViewPage() {
   const { user } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState(getCurrentYearString());
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [yearsLoading, setYearsLoading] = useState(true);
   const router = useRouter();
@@ -91,13 +46,13 @@ export default function FinancialYearViewPage() {
     const discoverYears = async () => {
       try {
         setYearsLoading(true);
-        const accountsRef = ref(db, 'UAT/Accounts');
-        const snapshot = await get(accountsRef);
+        // Read the Accounts level to discover available year nodes
+        const snapshot = await get(ref(db, DB_PATHS.ROOT));
         if (snapshot.exists()) {
           const data = snapshot.val();
           // Filter to only include 4-digit numeric year keys (e.g., "2024", "2025")
           const years = Object.keys(data)
-            .filter(key => /^\d{4}$/.test(key))
+            .filter(key => YEAR_KEY_REGEX.test(key))
             .sort((a, b) => parseInt(b) - parseInt(a));
           setAvailableYears(years);
           if (years.length > 0 && !years.includes(selectedYear)) {
@@ -125,7 +80,7 @@ export default function FinancialYearViewPage() {
     stateSetterMap[type](prev => ({ ...prev, loading: true, expanded: true }));
 
     try {
-      const sectionRef = ref(db, `UAT/Accounts/${selectedYear}/${type}`);
+      const sectionRef = ref(db, `${dbPath.year(selectedYear)}/${type}`);
       const snapshot = await get(sectionRef);
 
       if (snapshot.exists()) {
@@ -265,8 +220,7 @@ export default function FinancialYearViewPage() {
   };
 
   // Check permissions
-  const canAccess = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
+  const canAccess = userData && hasAccess(userData.userType);
 
   if (loading) {
     return (
@@ -288,7 +242,7 @@ export default function FinancialYearViewPage() {
               <p className="text-sm">You do not have permission to view this page.</p>
             </div>
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push(ROUTES.DASHBOARD)}
               className="mt-4 text-blue-600 hover:text-blue-800"
             >
               ← Back to Dashboard
@@ -306,7 +260,7 @@ export default function FinancialYearViewPage() {
           {/* Header */}
           <div className="flex items-center mb-6">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push(ROUTES.DASHBOARD)}
               className="mr-4 text-blue-600 hover:text-blue-800"
             >
               ← Back to Dashboard
@@ -334,7 +288,7 @@ export default function FinancialYearViewPage() {
                 ) : (
                   availableYears.map((year) => (
                     <option key={year} value={year}>
-                      {year} - {parseInt(year) + 1}
+                      {formatFinancialYear(year)}
                     </option>
                   ))
                 )}
@@ -401,7 +355,7 @@ export default function FinancialYearViewPage() {
                             <tr
                               key={item.key}
                               className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => router.push(`/income-list/${item.key}`)}
+                              onClick={() => router.push(`${ROUTES.INCOME_LIST}/${item.key}`)}
                             >
                               {keys.map(key => (
                                 <td key={key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -488,7 +442,7 @@ export default function FinancialYearViewPage() {
                             <tr
                               key={item.key}
                               className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => router.push(`/expense-list/${item.key}`)}
+                              onClick={() => router.push(`${ROUTES.EXPENSE_LIST}/${item.key}`)}
                             >
                               {keys.map(key => (
                                 <td key={key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -568,7 +522,7 @@ export default function FinancialYearViewPage() {
                             <tr
                               key={item.key}
                               className="hover:bg-gray-50 cursor-pointer"
-                              onClick={() => router.push(`/member-list/${item.key}`)}
+                              onClick={() => router.push(`${ROUTES.MEMBER_LIST}/${item.key}`)}
                             >
                               {keys.map(key => (
                                 <td key={key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">

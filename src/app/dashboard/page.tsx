@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
+import { dbPath, ROUTES, hasAccess, getCurrentYearString } from "../../utils/constants";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -27,10 +28,10 @@ export default function DashboardPage() {
   // Fetch total expense and total income for current year
   useEffect(() => {
     const fetchTotals = async () => {
-      const currentYear = new Date().getFullYear().toString();
+      const currentYear = getCurrentYearString();
       
       // Fetch total expense
-      const totalExpenseRef = ref(db, `UAT/Accounts/${currentYear}/total_expense`);
+      const totalExpenseRef = ref(db, dbPath.totalExpense(currentYear));
       const expenseSnapshot = await get(totalExpenseRef);
       if (expenseSnapshot.exists()) {
         setTotalExpense(expenseSnapshot.val() || 0);
@@ -39,7 +40,7 @@ export default function DashboardPage() {
       }
 
       // Fetch total income
-      const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+      const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
       const incomeSnapshot = await get(totalIncomeRef);
       if (incomeSnapshot.exists()) {
         setTotalIncome(incomeSnapshot.val() || 0);
@@ -52,14 +53,9 @@ export default function DashboardPage() {
   }, []);
 
   // Check if user has permission to access Expense Tracker, Income Tracker, and Add Member
-  const canAccessExpenseTracker = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
-  
-  const canAccessIncomeTracker = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
-  
-  const canAccessAddMember = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
+  const canAccessExpenseTracker = userData && hasAccess(userData.userType);
+  const canAccessIncomeTracker = userData && hasAccess(userData.userType);
+  const canAccessAddMember = userData && hasAccess(userData.userType);
 
   return (
     <ProtectedRoute>
@@ -80,7 +76,7 @@ export default function DashboardPage() {
                   {/* Expense Tracker Button - Only visible for Accounts or GB users */}
                   {canAccessExpenseTracker && (
                     <button
-                      onClick={() => router.push("/expense-tracker")}
+                      onClick={() => router.push(ROUTES.EXPENSE_TRACKER)}
                       className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,7 +89,7 @@ export default function DashboardPage() {
                   {/* Expense List Button - Only visible for Accounts or GB users */}
                   {canAccessExpenseTracker && (
                     <button
-                      onClick={() => router.push("/expense-list")}
+                      onClick={() => router.push(ROUTES.EXPENSE_LIST)}
                       className="bg-green-700 text-white px-6 py-3 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-600 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +102,7 @@ export default function DashboardPage() {
                   {/* Income Tracker Button - Only visible for Accounts or GB users */}
                   {canAccessIncomeTracker && (
                     <button
-                      onClick={() => router.push("/income-tracker")}
+                      onClick={() => router.push(ROUTES.INCOME_TRACKER)}
                       className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +115,7 @@ export default function DashboardPage() {
                   {/* Income List Button - Only visible for Accounts or GB users */}
                   {canAccessIncomeTracker && (
                     <button
-                      onClick={() => router.push("/income-list")}
+                      onClick={() => router.push(ROUTES.INCOME_LIST)}
                       className="bg-blue-700 text-white px-6 py-3 rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +128,7 @@ export default function DashboardPage() {
                   {/* Add Member Button - Only visible for Accounts or GB users */}
                   {canAccessAddMember && (
                     <button
-                      onClick={() => router.push("/add-member")}
+                      onClick={() => router.push(ROUTES.ADD_MEMBER)}
                       className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,7 +141,7 @@ export default function DashboardPage() {
                 {/* Member List Button - Only visible for Accounts or GB users */}
                   {canAccessAddMember && (
                     <button
-                      onClick={() => router.push("/member-list")}
+                      onClick={() => router.push(ROUTES.MEMBER_LIST)}
                       className="bg-purple-600 text-white px-6 py-3 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +154,7 @@ export default function DashboardPage() {
                   {/* Financial Year View Button */}
                   {canAccessAddMember && (
                     <button
-                      onClick={() => router.push("/financial-year-view")}
+                      onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
                       className="bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium transition-colors duration-200 flex items-center"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,7 +196,7 @@ export default function DashboardPage() {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4 text-gray-700">Income Summary</h2>
                 <div className="border rounded-lg p-4 bg-green-50">
-                  <p className="text-sm text-gray-500 mb-1">Total Income ({new Date().getFullYear()})</p>
+                  <p className="text-sm text-gray-500 mb-1">Total Income ({getCurrentYearString()})</p>
                   <p className="text-2xl font-bold text-green-600">₹ {totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
@@ -209,7 +205,7 @@ export default function DashboardPage() {
               <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4 text-gray-700">Expense Summary</h2>
                 <div className="border rounded-lg p-4 bg-red-50">
-                  <p className="text-sm text-gray-500 mb-1">Total Expense ({new Date().getFullYear()})</p>
+                  <p className="text-sm text-gray-500 mb-1">Total Expense ({getCurrentYearString()})</p>
                   <p className="text-2xl font-bold text-red-600">₹ {totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
               </div>
