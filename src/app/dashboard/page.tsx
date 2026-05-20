@@ -163,6 +163,58 @@ export default function DashboardPage() {
                       Financial Year View
                     </button>
                   )}
+                  
+                  {/* Stall Booking Button */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push(ROUTES.STALL_TRACKER)}
+                      className="bg-orange-600 text-white px-6 py-3 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      Stall Booking
+                    </button>
+                  )}
+                  
+                  {/* Stall List Button */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push(ROUTES.STALL_LIST)}
+                      className="bg-amber-600 text-white px-6 py-3 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                      Stall List
+                    </button>
+                  )}
+                  
+                  {/* Donation Button */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push(ROUTES.DONATION_TRACKER)}
+                      className="bg-rose-600 text-white px-6 py-3 rounded-md hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      Donation
+                    </button>
+                  )}
+                  
+                  {/* Donation List Button */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push(ROUTES.DONATION_LIST)}
+                      className="bg-pink-600 text-white px-6 py-3 rounded-md hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                      Donation List
+                    </button>
+                  )}
                 </div>
               </div>
 

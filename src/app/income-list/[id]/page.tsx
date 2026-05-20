@@ -8,6 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
+import { DEFAULTS } from "../../../utils/constants";
 
 interface IncomeItem {
   key: string;
@@ -23,6 +24,8 @@ interface IncomeItem {
   inputBy?: string;
   createdBy?: string;
   createdAt?: string;
+  stallLink?: string;
+  donationLink?: string;
 }
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
@@ -36,7 +39,9 @@ export default function IncomeDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isMembershipFee = income?.category === "Membership Fee";
-  const isDeleteDisabled = isMembershipFee;
+  const isStallBooking = income?.category === DEFAULTS.STALL_INCOME_CATEGORY;
+  const isDonationItem = income?.category === DEFAULTS.DONATION_INCOME_CATEGORY;
+  const isDeleteDisabled = isMembershipFee || isStallBooking || isDonationItem;
   const router = useRouter();
   const params = useParams();
 
@@ -500,8 +505,23 @@ export default function IncomeDetailPage() {
               {/* Action Buttons */}
               <div className="flex gap-3 mb-6">
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  onClick={() => {
+                    if (isStallBooking) {
+                      alert("Stall Booking income records cannot be edited from income list. Please edit from the Stall List instead.");
+                      return;
+                    }
+                    if (isDonationItem) {
+                      alert("Donation Item income records cannot be edited from income list. Please edit from the Donation List instead.");
+                      return;
+                    }
+                    setIsEditing(true);
+                  }}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium ${
+                    isStallBooking || isDonationItem
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                  style={isStallBooking || isDonationItem ? { pointerEvents: 'auto' } : {}}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -512,6 +532,14 @@ export default function IncomeDetailPage() {
                   onClick={() => {
                     if (isMembershipFee) {
                       alert("Membership Fee records cannot be deleted from income list. Please unmark the payment from the member's record instead.");
+                      return;
+                    }
+                    if (isStallBooking) {
+                      alert("Stall Booking income records cannot be deleted from income list. Please delete from the Stall List instead.");
+                      return;
+                    }
+                    if (isDonationItem) {
+                      alert("Donation Item income records cannot be deleted from income list. Please delete from the Donation List instead.");
                       return;
                     }
                     setShowDeleteConfirm(true);

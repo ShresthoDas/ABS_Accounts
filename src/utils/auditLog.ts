@@ -3,7 +3,7 @@ import { ref, push, set } from "firebase/database";
 
 export interface AuditEntry {
   action: "CREATE" | "UPDATE" | "DELETE";
-  entityType: "Income" | "Expense" | "Member";
+  entityType: "Income" | "Expense" | "Member" | "Stall" | "Donation";
   entityId: string;
   previousData: Record<string, any> | null;
   newData: Record<string, any> | null;

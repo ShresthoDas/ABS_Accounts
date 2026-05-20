@@ -1,0 +1,1 @@
+Document the exact architectural pattern, file structure, and error handling we just used to build the each page type, and instruct yourself to use this pattern for all future pages of similar types.

@@ -11,6 +11,8 @@ export const DB_PATHS = {
   INCOME: 'Income',
   EXPENSE: 'Expense',
   MEMBERS: 'Members',
+  STALLS: 'Stalls',
+  DONATIONS: 'Donations',
 
   // Totals
   TOTAL_INCOME: 'total_income',
@@ -44,6 +46,12 @@ export const dbPath = {
   /** e.g. dbPath.receiptCounter("24") => "UAT/Accounts/ReceiptCounters/24" */
   receiptCounter: (yearSuffix: string | number) => `${DB_PATHS.ROOT}/${DB_PATHS.RECEIPT_COUNTERS}/${yearSuffix}`,
   
+  /** e.g. dbPath.stalls("2024") => "UAT/Accounts/2024/Stalls" */
+  stalls: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.STALLS}`,
+  
+  /** e.g. dbPath.donations("2024") => "UAT/Accounts/2024/Donations" */
+  donations: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.DONATIONS}`,
+  
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
 };
@@ -58,6 +66,10 @@ export const ROUTES = {
   ADD_MEMBER: '/add-member',
   MEMBER_LIST: '/member-list',
   FINANCIAL_YEAR_VIEW: '/financial-year-view',
+  STALL_TRACKER: '/stall-tracker',
+  STALL_LIST: '/stall-list',
+  DONATION_TRACKER: '/donation-tracker',
+  DONATION_LIST: '/donation-list',
   LOGIN: '/login',
 } as const;
 
@@ -117,11 +129,32 @@ export const EXPENSE_CATEGORIES = [
   { value: 'Other', label: 'Other' },
 ] as const;
 
+// --------------- Stall Types ---------------
+export const STALL_TYPES = [
+  { value: 'Food', label: 'Food' },
+  { value: 'Dry', label: 'Dry' },
+] as const;
+
+export type StallType = typeof STALL_TYPES[number]['value'];
+
+// --------------- Donation Event Categories ---------------
+export const DONATION_EVENT_CATEGORIES = [
+  { value: 'Wedding', label: 'Wedding' },
+  { value: 'Anniversary', label: 'Anniversary' },
+  { value: 'Birthday', label: 'Birthday' },
+  { value: 'Religious Ceremony', label: 'Religious Ceremony' },
+  { value: 'Community Event', label: 'Community Event' },
+  { value: 'Other Event', label: 'Other Event' },
+] as const;
+
 // --------------- Default Values ---------------
 export const DEFAULTS = {
   MEMBER_AMOUNT: '8000',
   MEMBER_ID_PREFIX: 'ABSPM-',
   RECEIPT_PREFIX: 'ABS',
+  STALL_NUMBER_DEFAULT: 0,
+  STALL_INCOME_CATEGORY: 'Stall Booking',
+  DONATION_INCOME_CATEGORY: 'Donation Item',
 } as const;
 
 // --------------- Year Regex (for filtering DB keys) ---------------
