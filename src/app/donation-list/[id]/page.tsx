@@ -159,8 +159,8 @@ export default function DonationDetailPage() {
       const currentYear = getCurrentYearString();
       const donationRef = ref(db, `${dbPath.donations(currentYear)}/${params.id}`);
       const oldData = { ...donation };
-      const oldPaidAmount = donation.paidAmount || 0;
-      const paidDifference = newPaid - oldPaidAmount;
+      const oldPaidAmount = roundMoney(donation.paidAmount || 0);
+      const paidDifference = roundMoney(newPaid - oldPaidAmount);
 
       const updatedData: Record<string, any> = {
         date, name: name.trim(), panNumber: panNumber.trim().toUpperCase(), mobileNumber: mobileNumber.trim(),
