@@ -48,7 +48,7 @@ export default function IncomeListPage() {
       createdBy: income.createdBy,
       createdAt: income.createdAt,
     };
-    generateReceiptPDF(incomeData);
+    generateReceiptPDF(incomeData as any);
   };
 
   useEffect(() => {
@@ -194,7 +194,11 @@ export default function IncomeListPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {incomes.map((income) => (
-                      <tr key={income.key} className="hover:bg-gray-50">
+                      <tr
+                        key={income.key}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/income-list/${income.key}`)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {new Date(income.date).toLocaleDateString('en-IN', {
                             day: '2-digit',
@@ -213,7 +217,10 @@ export default function IncomeListPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <button
-                            onClick={() => handleDownloadPDF(income)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadPDF(income);
+                            }}
                             className="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center justify-end gap-1 ml-auto"
                             title="Download Receipt PDF"
                           >

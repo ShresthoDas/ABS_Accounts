@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
+import { logAudit } from "../../utils/auditLog";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -183,58 +184,78 @@ export default function AddMemberPage() {
           await set(memberCounterRef, 1);
         }
 
-        // If payment is received, also record income, update total, generate receipt
-        if (paymentStatus) {
-          // Generate receipt number first
-          const receiptYear = new Date().getFullYear().toString().slice(-2);
-          const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${receiptYear}`);
-          const receiptSnap = await get(receiptCounterRef);
-          let nextReceiptNum = 1;
-          if (receiptSnap.exists()) {
-            nextReceiptNum = receiptSnap.val() + 1;
+          // If payment is received, also record income, update total, generate receipt
+          if (paymentStatus) {
+            // Generate receipt number first
+            const receiptYear = new Date().getFullYear().toString().slice(-2);
+            const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${receiptYear}`);
+            const receiptSnap = await get(receiptCounterRef);
+            let nextReceiptNum = 1;
+            if (receiptSnap.exists()) {
+              nextReceiptNum = receiptSnap.val() + 1;
+            }
+            const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+
+            // Create income record
+            const newIncomeRef = push(ref(db, `UAT/Accounts/${currentYear}/Income`));
+            const incomeKey = newIncomeRef.key;
+
+            const incomeData = {
+              key: incomeKey,
+              date,
+              receiptNumber: newReceiptNumber,
+              name,
+              mobileNumber: mobileNumber || null,
+              panNumber,
+              amount: incomeAmount,
+              category: "Membership Fee",
+              modeOfPayment,
+              chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+              inputBy,
+              createdAt: new Date().toISOString(),
+              createdBy: user?.uid,
+              memberLink: newMemberKey,
+            };
+
+            await set(newIncomeRef, incomeData);
+
+            // Store incomeKey and receiptNumber on the member record
+            memberData.incomeKey = incomeKey;
+            memberData.receiptNumber = newReceiptNumber;
+            await update(newMemberRef, {
+              incomeKey: incomeKey,
+              receiptNumber: newReceiptNumber,
+            });
+
+            // Update total income
+            const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+            const totalSnapshot = await get(totalIncomeRef);
+            if (totalSnapshot.exists()) {
+              await set(totalIncomeRef, totalSnapshot.val() + incomeAmount);
+            } else {
+              await set(totalIncomeRef, incomeAmount);
+            }
+
+            // Update receipt counter
+            await set(receiptCounterRef, nextReceiptNum);
+
+            // Generate and download receipt PDF
+            generateReceiptPDF(incomeData);
+
+            console.log("Income Data from member payment:", incomeData);
           }
-          const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
 
-          // Create income record
-          const newIncomeRef = push(ref(db, `UAT/Accounts/${currentYear}/Income`));
-          const incomeKey = newIncomeRef.key;
-
-          const incomeData = {
-            key: incomeKey,
-            date,
-            receiptNumber: newReceiptNumber,
-            name,
-            mobileNumber: mobileNumber || null,
-            panNumber,
-            amount: incomeAmount,
-            category: "Membership Fee",
-            modeOfPayment,
-            chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
-            inputBy,
-            createdAt: new Date().toISOString(),
-            createdBy: user?.uid,
-            linkedMemberId: memberId,
-          };
-
-          await set(newIncomeRef, incomeData);
-
-          // Update total income
-          const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
-          const totalSnapshot = await get(totalIncomeRef);
-          if (totalSnapshot.exists()) {
-            await set(totalIncomeRef, totalSnapshot.val() + incomeAmount);
-          } else {
-            await set(totalIncomeRef, incomeAmount);
-          }
-
-          // Update receipt counter
-          await set(receiptCounterRef, nextReceiptNum);
-
-          // Generate and download receipt PDF
-          generateReceiptPDF(incomeData);
-
-          console.log("Income Data from member payment:", incomeData);
-        }
+        // Log audit for member creation
+        await logAudit({
+          action: "CREATE",
+          entityType: "Member",
+          entityId: newMemberKey as string,
+          previousData: null,
+          newData: memberData,
+          changedBy: userData?.name || user?.email || "Unknown",
+          changedByUid: user?.uid || "",
+          changedAt: new Date().toISOString(),
+        });
 
         console.log("Member Data:", memberData);
         alert("Member added successfully!");

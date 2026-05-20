@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
+import { logAudit } from "../../utils/auditLog";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -139,6 +140,18 @@ export default function ExpenseTrackerPage() {
           // Create new total with first entry
           await set(totalExpenseRef, expenseAmount );
         }
+
+        // Log audit for expense creation
+        await logAudit({
+          action: "CREATE",
+          entityType: "Expense",
+          entityId: expenseKey as string,
+          previousData: null,
+          newData: expenseData,
+          changedBy: userData?.name || user?.email || "Unknown",
+          changedByUid: user?.uid || "",
+          changedAt: new Date().toISOString(),
+        });
 
         console.log("Expense Data:", expenseData);
         alert("Expense recorded successfully!");

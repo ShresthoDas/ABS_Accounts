@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
+import { logAudit } from "../../utils/auditLog";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -170,6 +171,18 @@ export default function IncomeTrackerPage() {
           // Create new total with first entry
           await set(totalIncomeRef, incomeAmount);
         }
+
+        // Log audit for income creation
+        await logAudit({
+          action: "CREATE",
+          entityType: "Income",
+          entityId: incomeKey as string,
+          previousData: null,
+          newData: incomeData,
+          changedBy: userData?.name || user?.email || "Unknown",
+          changedByUid: user?.uid || "",
+          changedAt: new Date().toISOString(),
+        });
 
         // Update the receipt counter
         const receiptYear = new Date().getFullYear().toString().slice(-2);

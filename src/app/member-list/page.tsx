@@ -178,7 +178,11 @@ export default function MemberListPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {members.map((member, index) => (
-                      <tr key={member.key} className="hover:bg-gray-50">
+                      <tr
+                        key={member.key}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/member-list/${member.key}`)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {index + 1}
                         </td>

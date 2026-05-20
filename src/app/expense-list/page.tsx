@@ -164,7 +164,11 @@ export default function ExpenseListPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {expenses.map((expense) => (
-                      <tr key={expense.key} className="hover:bg-gray-50">
+                      <tr
+                        key={expense.key}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/expense-list/${expense.key}`)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {new Date(expense.date).toLocaleDateString('en-IN', {
                             day: '2-digit',
