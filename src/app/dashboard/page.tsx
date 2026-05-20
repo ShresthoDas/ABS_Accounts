@@ -142,7 +142,7 @@ export default function DashboardPage() {
                     </button>
                   )}
                   
-                  {/* Member List Button - Only visible for Accounts or GB users */}
+                {/* Member List Button - Only visible for Accounts or GB users */}
                   {canAccessAddMember && (
                     <button
                       onClick={() => router.push("/member-list")}
@@ -152,6 +152,19 @@ export default function DashboardPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                       </svg>
                       Member List
+                    </button>
+                  )}
+                  
+                  {/* Financial Year View Button */}
+                  {canAccessAddMember && (
+                    <button
+                      onClick={() => router.push("/financial-year-view")}
+                      className="bg-teal-600 text-white px-6 py-3 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Financial Year View
                     </button>
                   )}
                 </div>
