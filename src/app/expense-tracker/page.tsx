@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { logAudit } from "../../utils/auditLog";
+import { dbPath, getCurrentYearString, EXPENSE_CATEGORIES } from "../../utils/constants";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -31,19 +32,10 @@ export default function ExpenseTrackerPage() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Category options (test values - to be filled with actual values later)
+  // Category options from constants
   const categoryOptions = [
     { value: "", label: "-- Select Category --" },
-    { value: "Office Supplies", label: "Office Supplies" },
-    { value: "Travel", label: "Travel" },
-    { value: "Food & Beverages", label: "Food & Beverages" },
-    { value: "Utilities", label: "Utilities" },
-    { value: "Maintenance", label: "Maintenance" },
-    { value: "Marketing", label: "Marketing" },
-    { value: "Professional Services", label: "Professional Services" },
-    { value: "Rent", label: "Rent" },
-    { value: "Insurance", label: "Insurance" },
-    { value: "Other", label: "Other" },
+    ...EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
   ];
 
   useEffect(() => {
@@ -104,10 +96,10 @@ export default function ExpenseTrackerPage() {
     if (validateForm()) {
       try {
         const expenseAmount = parseFloat(amount);
-        const currentYear = new Date().getFullYear().toString();
+        const currentYear = getCurrentYearString();
         
         // Create a unique key for this expense record
-        const newExpenseRef = push(ref(db, `UAT/Accounts/${currentYear}/Expense`));
+        const newExpenseRef = push(ref(db, dbPath.expense(currentYear)));
         const expenseKey = newExpenseRef.key;
 
         const expenseData = {
@@ -129,7 +121,7 @@ export default function ExpenseTrackerPage() {
         await set(newExpenseRef, expenseData);
 
         // Update total expense
-        const totalExpenseRef = ref(db, `UAT/Accounts/${currentYear}/total_expense`);
+        const totalExpenseRef = ref(db, dbPath.totalExpense(currentYear));
         const totalSnapshot = await get(totalExpenseRef);
         
         if (totalSnapshot.exists()) {

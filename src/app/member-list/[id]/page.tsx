@@ -8,6 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
+import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../../utils/constants";
 
 interface MemberItem {
   key: string;
@@ -75,8 +76,8 @@ export default function MemberDetailPage() {
   const fetchMemberDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = new Date().getFullYear().toString();
-      const memberRef = ref(db, `UAT/Accounts/${currentYear}/Members/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const memberRef = ref(db, `${dbPath.members(currentYear)}/${params.id}`);
       const snapshot = await get(memberRef);
 
       if (snapshot.exists()) {
@@ -113,7 +114,7 @@ export default function MemberDetailPage() {
 
   const generateReceiptNumber = async (year: string) => {
     const yearShort = year.slice(-2);
-    const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${yearShort}`);
+    const receiptCounterRef = ref(db, dbPath.receiptCounter(yearShort));
     const snapshot = await get(receiptCounterRef);
     let nextNumber = 1;
     if (snapshot.exists()) {
@@ -124,7 +125,7 @@ export default function MemberDetailPage() {
 
   const updateReceiptCounter = async (year: string) => {
     const yearShort = year.slice(-2);
-    const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${yearShort}`);
+    const receiptCounterRef = ref(db, dbPath.receiptCounter(yearShort));
     const snapshot = await get(receiptCounterRef);
     if (snapshot.exists()) {
       await set(receiptCounterRef, snapshot.val() + 1);
@@ -145,7 +146,7 @@ export default function MemberDetailPage() {
       throw new Error("Amount must be greater than 0 to create an income record.");
     }
 
-    const newIncomeRef = push(ref(db, `UAT/Accounts/${year}/Income`));
+    const newIncomeRef = push(ref(db, dbPath.income(year)));
     const incomeKey = newIncomeRef.key;
 
     const incomeData = {
@@ -156,7 +157,7 @@ export default function MemberDetailPage() {
       mobileNumber: memberData.mobileNumber || null,
       panNumber: memberData.panNumber || "",
       amount: incomeAmount,
-      category: "Membership Fee",
+      category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
       modeOfPayment: memberData.modeOfPayment || "Cash",
       chequeNumber: memberData.chequeNumber || null,
       inputBy: memberData.inputBy || changedBy,
@@ -168,7 +169,7 @@ export default function MemberDetailPage() {
     await set(newIncomeRef, incomeData);
 
     // Update total income
-    const totalIncomeRef = ref(db, `UAT/Accounts/${year}/total_income`);
+    const totalIncomeRef = ref(db, dbPath.totalIncome(year));
     const totalSnapshot = await get(totalIncomeRef);
     if (totalSnapshot.exists()) {
       await set(totalIncomeRef, totalSnapshot.val() + incomeAmount);
@@ -197,7 +198,7 @@ export default function MemberDetailPage() {
     changedBy: string,
     changedByUid: string
   ) => {
-    const incomeRef = ref(db, `UAT/Accounts/${year}/Income/${incomeKey}`);
+    const incomeRef = ref(db, `${dbPath.income(year)}/${incomeKey}`);
     const incomeSnapshot = await get(incomeRef);
 
     if (!incomeSnapshot.exists()) {
@@ -212,7 +213,7 @@ export default function MemberDetailPage() {
     await remove(incomeRef);
 
     // Update total income
-    const totalIncomeRef = ref(db, `UAT/Accounts/${year}/total_income`);
+    const totalIncomeRef = ref(db, dbPath.totalIncome(year));
     const totalSnapshot = await get(totalIncomeRef);
     if (totalSnapshot.exists()) {
       await set(totalIncomeRef, totalSnapshot.val() - incomeAmount);
@@ -235,8 +236,8 @@ export default function MemberDetailPage() {
     if (!member || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = new Date().getFullYear().toString();
-      const memberRef = ref(db, `UAT/Accounts/${currentYear}/Members/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const memberRef = ref(db, `${dbPath.members(currentYear)}/${params.id}`);
 
       // Get old data for audit
       const oldData = { ...member };
@@ -288,8 +289,8 @@ export default function MemberDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = new Date().getFullYear().toString();
-      const memberRef = ref(db, `UAT/Accounts/${currentYear}/Members/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const memberRef = ref(db, `${dbPath.members(currentYear)}/${params.id}`);
 
       // Get old data for audit
       const oldData = { ...member };
@@ -344,7 +345,7 @@ export default function MemberDetailPage() {
             mobileNumber: mobileNumber || null,
             panNumber: panNumber || "",
             amount: parseFloat(amount),
-            category: "Membership Fee",
+            category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
             modeOfPayment: modeOfPayment || "Cash",
             chequeNumber: chequeNumber || null,
             inputBy: inputBy || userData.name,

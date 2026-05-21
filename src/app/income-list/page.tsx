@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
+import { dbPath, getCurrentYearString } from "../../utils/constants";
 
 interface IncomeItem {
   key: string;
@@ -70,8 +71,8 @@ export default function IncomeListPage() {
   const fetchIncomes = async () => {
     try {
       setIncomesLoading(true);
-      const currentYear = new Date().getFullYear().toString();
-      const incomesRef = ref(db, `UAT/Accounts/${currentYear}/Income`);
+      const currentYear = getCurrentYearString();
+      const incomesRef = ref(db, dbPath.income(currentYear));
       const snapshot = await get(incomesRef);
       
       if (snapshot.exists()) {

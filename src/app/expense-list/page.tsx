@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, orderByChild } from "firebase/database";
+import { dbPath, getCurrentYearString } from "../../utils/constants";
 
 interface ExpenseItem {
   key: string;
@@ -43,8 +44,8 @@ export default function ExpenseListPage() {
   const fetchExpenses = async () => {
     try {
       setExpensesLoading(true);
-      const currentYear = new Date().getFullYear().toString();
-      const expensesRef = ref(db, `UAT/Accounts/${currentYear}/Expense`);
+      const currentYear = getCurrentYearString();
+      const expensesRef = ref(db, dbPath.expense(currentYear));
       const snapshot = await get(expensesRef);
       
       if (snapshot.exists()) {

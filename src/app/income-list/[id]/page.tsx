@@ -8,7 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { DEFAULTS } from "../../../utils/constants";
+import { dbPath, getCurrentYearString, DEFAULTS, INCOME_CATEGORIES } from "../../../utils/constants";
 
 interface IncomeItem {
   key: string;
@@ -38,7 +38,7 @@ export default function IncomeDetailPage() {
   const [income, setIncome] = useState<IncomeItem | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const isMembershipFee = income?.category === "Membership Fee";
+  const isMembershipFee = income?.category === "Membership";
   const isStallBooking = income?.category === DEFAULTS.STALL_INCOME_CATEGORY;
   const isDonationItem = income?.category === DEFAULTS.DONATION_INCOME_CATEGORY;
   const isDeleteDisabled = isMembershipFee || isStallBooking || isDonationItem;
@@ -56,18 +56,7 @@ export default function IncomeDetailPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
 
-  const categoryOptions = [
-    { value: "Donation", label: "Donation" },
-    { value: "Membership Fee", label: "Membership Fee" },
-    { value: "Event Income", label: "Event Income" },
-    { value: "Interest Income", label: "Interest Income" },
-    { value: "Rental Income", label: "Rental Income" },
-    { value: "Grant", label: "Grant" },
-    { value: "Sponsorship", label: "Sponsorship" },
-    { value: "Sale Proceeds", label: "Sale Proceeds" },
-    { value: "Refund Received", label: "Refund Received" },
-    { value: "Other Income", label: "Other Income" },
-  ];
+  const categoryOptions = INCOME_CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
 
   useEffect(() => {
     if (user) {
@@ -88,8 +77,8 @@ export default function IncomeDetailPage() {
   const fetchIncomeDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = new Date().getFullYear().toString();
-      const incomeRef = ref(db, `UAT/Accounts/${currentYear}/Income/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
       const snapshot = await get(incomeRef);
 
       if (snapshot.exists()) {
@@ -124,8 +113,8 @@ export default function IncomeDetailPage() {
     if (!income || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = new Date().getFullYear().toString();
-      const incomeRef = ref(db, `UAT/Accounts/${currentYear}/Income/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
 
       // Get old data for audit
       const oldData = { ...income };
@@ -134,7 +123,7 @@ export default function IncomeDetailPage() {
       await remove(incomeRef);
 
       // Update total income
-      const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+      const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
       const totalSnapshot = await get(totalIncomeRef);
       if (totalSnapshot.exists()) {
         await set(totalIncomeRef, totalSnapshot.val() - income.amount);
@@ -174,8 +163,8 @@ export default function IncomeDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = new Date().getFullYear().toString();
-      const incomeRef = ref(db, `UAT/Accounts/${currentYear}/Income/${params.id}`);
+      const currentYear = getCurrentYearString();
+      const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
       const newAmount = parseFloat(amount);
       const amountDifference = newAmount - income.amount;
 
@@ -202,7 +191,7 @@ export default function IncomeDetailPage() {
 
       // Adjust total income if amount changed
       if (amountDifference !== 0) {
-        const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+      const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
         const totalSnapshot = await get(totalIncomeRef);
         if (totalSnapshot.exists()) {
           await set(totalIncomeRef, totalSnapshot.val() + amountDifference);

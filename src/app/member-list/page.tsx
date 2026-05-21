@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
+import { dbPath, getCurrentYearString } from "../../utils/constants";
 
 interface MemberItem {
   key: string;
@@ -53,8 +54,8 @@ export default function MemberListPage() {
   const fetchMembers = async () => {
     try {
       setMembersLoading(true);
-      const currentYear = new Date().getFullYear().toString();
-      const membersRef = ref(db, `UAT/Accounts/${currentYear}/Members`);
+      const currentYear = getCurrentYearString();
+      const membersRef = ref(db, dbPath.members(currentYear));
       const snapshot = await get(membersRef);
 
       if (snapshot.exists()) {

@@ -8,6 +8,7 @@ import { db } from "../../firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
+import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../utils/constants";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -144,7 +145,7 @@ export default function AddMemberPage() {
 
     if (validateForm()) {
       try {
-        const currentYear = new Date().getFullYear().toString();
+        const currentYear = getCurrentYearString();
         const incomeAmount = parseFloat(amount) || 0;
 
         const memberData: Record<string, any> = {
@@ -169,7 +170,7 @@ export default function AddMemberPage() {
         }
 
         // Save to Firebase with a unique key
-        const newMemberRef = push(ref(db, `UAT/Accounts/${currentYear}/Members`));
+        const newMemberRef = push(ref(db, dbPath.members(currentYear)));
         const newMemberKey = newMemberRef.key;
         memberData.key = newMemberKey;
         await set(newMemberRef, memberData);
@@ -197,7 +198,7 @@ export default function AddMemberPage() {
             const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
 
             // Create income record
-            const newIncomeRef = push(ref(db, `UAT/Accounts/${currentYear}/Income`));
+            const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
             const incomeKey = newIncomeRef.key;
 
             const incomeData = {
@@ -208,7 +209,7 @@ export default function AddMemberPage() {
               mobileNumber: mobileNumber || null,
               panNumber,
               amount: incomeAmount,
-              category: "Membership Fee",
+              category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
               modeOfPayment,
               chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
               inputBy,
@@ -228,7 +229,7 @@ export default function AddMemberPage() {
             });
 
             // Update total income
-            const totalIncomeRef = ref(db, `UAT/Accounts/${currentYear}/total_income`);
+            const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
             const totalSnapshot = await get(totalIncomeRef);
             if (totalSnapshot.exists()) {
               await set(totalIncomeRef, totalSnapshot.val() + incomeAmount);

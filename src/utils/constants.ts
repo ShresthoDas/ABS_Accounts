@@ -13,6 +13,7 @@ export const DB_PATHS = {
   MEMBERS: 'Members',
   STALLS: 'Stalls',
   DONATIONS: 'Donations',
+  ADS: 'Ads',
 
   // Totals
   TOTAL_INCOME: 'total_income',
@@ -52,6 +53,9 @@ export const dbPath = {
   /** e.g. dbPath.donations("2024") => "UAT/Accounts/2024/Donations" */
   donations: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.DONATIONS}`,
   
+  /** e.g. dbPath.ads("2024") => "UAT/Accounts/2024/Ads" */
+  ads: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.ADS}`,
+  
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
 };
@@ -70,6 +74,8 @@ export const ROUTES = {
   STALL_LIST: '/stall-list',
   DONATION_TRACKER: '/donation-tracker',
   DONATION_LIST: '/donation-list',
+  AD_TRACKER: '/ad-tracker',
+  AD_LIST: '/ad-list',
   LOGIN: '/login',
 } as const;
 
@@ -104,29 +110,56 @@ export const requiresReferenceNumber = (mode: string): boolean => {
 
 // --------------- Category Options ---------------
 export const INCOME_CATEGORIES = [
-  { value: 'Donation', label: 'Donation' },
-  { value: 'Membership Fee', label: 'Membership Fee' },
-  { value: 'Event Income', label: 'Event Income' },
-  { value: 'Interest Income', label: 'Interest Income' },
-  { value: 'Rental Income', label: 'Rental Income' },
-  { value: 'Grant', label: 'Grant' },
-  { value: 'Sponsorship', label: 'Sponsorship' },
-  { value: 'Sale Proceeds', label: 'Sale Proceeds' },
-  { value: 'Refund Received', label: 'Refund Received' },
-  { value: 'Other Income', label: 'Other Income' },
+  { value: 'Advertisement', label: 'Advertisement' },
+  { value: 'Membership', label: 'Membership' },
+  { value: 'Corporate Donations', label: 'Corporate Donations' },
+  { value: 'Donation Item', label: 'Donation Item' },
+  { value: 'Spot Collection', label: 'Spot Collection' },
+  { value: 'Dan Peti', label: 'Dan Peti' },
+  { value: 'Stall', label: 'Stall' },
+  { value: 'Picnic', label: 'Picnic' },
+  { value: 'Bijoya Sommeloni', label: 'Bijoya Sommeloni' },
+  { value: 'Dandiya Ticket', label: 'Dandiya Ticket' },
 ] as const;
 
 export const EXPENSE_CATEGORIES = [
-  { value: 'Office Supplies', label: 'Office Supplies' },
-  { value: 'Travel', label: 'Travel' },
-  { value: 'Food & Beverages', label: 'Food & Beverages' },
-  { value: 'Utilities', label: 'Utilities' },
-  { value: 'Maintenance', label: 'Maintenance' },
-  { value: 'Marketing', label: 'Marketing' },
-  { value: 'Professional Services', label: 'Professional Services' },
-  { value: 'Rent', label: 'Rent' },
+  { value: 'Venue Rent', label: 'Venue Rent' },
+  { value: 'Pandal/Theme', label: 'Pandal/Theme' },
+  { value: 'Protima', label: 'Protima' },
+  { value: 'Cultural - Artist', label: 'Cultural - Artist' },
+  { value: 'Cultural- Sound/Light/inhouse', label: 'Cultural- Sound/Light/inhouse' },
+  { value: 'Mahabhog', label: 'Mahabhog' },
+  { value: 'Cook', label: 'Cook' },
+  { value: 'Chur Churi', label: 'Chur Churi' },
+  { value: 'Dhaaki', label: 'Dhaaki' },
+  { value: 'Purohit', label: 'Purohit' },
+  { value: 'Pujo', label: 'Pujo' },
+  { value: 'Accomodation', label: 'Accomodation' },
+  { value: 'Decoration', label: 'Decoration' },
+  { value: 'Security', label: 'Security' },
+  { value: 'Housekeeping', label: 'Housekeeping' },
+  { value: 'Guest Felicitation', label: 'Guest Felicitation' },
+  { value: 'Transport', label: 'Transport' },
+  { value: 'Banner', label: 'Banner' },
+  { value: 'Guest Refreshments', label: 'Guest Refreshments' },
+  { value: 'Dashami Dinner', label: 'Dashami Dinner' },
+  { value: 'Toilet', label: 'Toilet' },
+  { value: 'Photography', label: 'Photography' },
+  { value: 'Bijoya Sommeloni', label: 'Bijoya Sommeloni' },
+  { value: 'Lokkhi Pujo', label: 'Lokkhi Pujo' },
+  { value: 'Kali Pujo', label: 'Kali Pujo' },
+  { value: 'Picnic', label: 'Picnic' },
+  { value: 'Saraswati Pujo', label: 'Saraswati Pujo' },
+  { value: 'CSR', label: 'CSR' },
   { value: 'Insurance', label: 'Insurance' },
-  { value: 'Other', label: 'Other' },
+  { value: 'CCTV', label: 'CCTV' },
+  { value: 'Advertisement/Marketing', label: 'Advertisement/Marketing' },
+  { value: 'Accounting Expense', label: 'Accounting Expense' },
+  { value: 'Electricty', label: 'Electricty' },
+  { value: 'Laptop', label: 'Laptop' },
+  { value: 'Miscellaneous', label: 'Miscellaneous' },
+  { value: 'Reimbursement', label: 'Reimbursement' },
+  { value: 'Cash Withdrawal', label: 'Cash Withdrawal' },
 ] as const;
 
 // --------------- Stall Types ---------------
@@ -137,14 +170,72 @@ export const STALL_TYPES = [
 
 export type StallType = typeof STALL_TYPES[number]['value'];
 
+// --------------- Ad Types ---------------
+export const AD_TYPES = [
+  { value: 'Banner', label: 'Banner' },
+  { value: 'LED', label: 'LED' },
+] as const;
+
+export type AdType = typeof AD_TYPES[number]['value'];
+
 // --------------- Donation Event Categories ---------------
 export const DONATION_EVENT_CATEGORIES = [
-  { value: 'Wedding', label: 'Wedding' },
-  { value: 'Anniversary', label: 'Anniversary' },
-  { value: 'Birthday', label: 'Birthday' },
-  { value: 'Religious Ceremony', label: 'Religious Ceremony' },
-  { value: 'Community Event', label: 'Community Event' },
-  { value: 'Other Event', label: 'Other Event' },
+  { value: 'Durga Protima', label: 'Durga Protima' },
+  { value: 'Dhaki', label: 'Dhaki' },
+  { value: 'Purohit', label: 'Purohit' },
+  { value: 'Mohila Dhaki', label: 'Mohila Dhaki' },
+  { value: 'Durga Saree', label: 'Durga Saree' },
+  { value: 'Shasti Pujo', label: 'Shasti Pujo' },
+  { value: 'Sashti Pujo Flowers', label: 'Sashti Pujo Flowers' },
+  { value: 'Sashti Pujo Sweets', label: 'Sashti Pujo Sweets' },
+  { value: 'Saptami Pujo', label: 'Saptami Pujo' },
+  { value: 'Saptami Flowers', label: 'Saptami Flowers' },
+  { value: 'Saptami Mahabhog', label: 'Saptami Mahabhog' },
+  { value: 'Saptami Pujo Prasad', label: 'Saptami Pujo Prasad' },
+  { value: 'Saptami Pujo Sweets', label: 'Saptami Pujo Sweets' },
+  { value: 'Saptami Pujo Bhog', label: 'Saptami Pujo Bhog' },
+  { value: 'Bolidaan', label: 'Bolidaan' },
+  { value: 'Ashtami Pujo', label: 'Ashtami Pujo' },
+  { value: 'Ashtami Flowers', label: 'Ashtami Flowers' },
+  { value: 'Ashtami Mahabhog', label: 'Ashtami Mahabhog' },
+  { value: 'Ashtami Prasad', label: 'Ashtami Prasad' },
+  { value: 'Ashtami Puja Bhog', label: 'Ashtami Puja Bhog' },
+  { value: 'Ashtami Sweets', label: 'Ashtami Sweets' },
+  { value: 'Poddo Ful', label: 'Poddo Ful' },
+  { value: 'Shandhi Pujo', label: 'Shandhi Pujo' },
+  { value: 'Kumari Pujo', label: 'Kumari Pujo' },
+  { value: 'Navami Pujo', label: 'Navami Pujo' },
+  { value: 'Navami Flowers', label: 'Navami Flowers' },
+  { value: 'Navami Mahabhog', label: 'Navami Mahabhog' },
+  { value: 'Navami Prasad', label: 'Navami Prasad' },
+  { value: 'Navami Pujo Bhog', label: 'Navami Pujo Bhog' },
+  { value: 'Navami Sweets', label: 'Navami Sweets' },
+  { value: 'Durga Joggo', label: 'Durga Joggo' },
+  { value: 'Dashami Sweets', label: 'Dashami Sweets' },
+  { value: 'Lokkhi Protima', label: 'Lokkhi Protima' },
+  { value: 'Lokkhi Pujo', label: 'Lokkhi Pujo' },
+  { value: 'Lokkhi Flowers', label: 'Lokkhi Flowers' },
+  { value: 'Lakkhi Bhog', label: 'Lakkhi Bhog' },
+  { value: 'Lokkhi Pujo Saree', label: 'Lokkhi Pujo Saree' },
+  { value: 'Lokkhi Pujo Mahabhog', label: 'Lokkhi Pujo Mahabhog' },
+  { value: 'Lokkhi Pujo Prasad', label: 'Lokkhi Pujo Prasad' },
+  { value: 'Lokkhi Pujo Sweets', label: 'Lokkhi Pujo Sweets' },
+  { value: 'Kali Protima', label: 'Kali Protima' },
+  { value: 'Kali Pujo', label: 'Kali Pujo' },
+  { value: 'Kali Flowers', label: 'Kali Flowers' },
+  { value: 'Kali Bhog', label: 'Kali Bhog' },
+  { value: 'Kali Saree', label: 'Kali Saree' },
+  { value: 'Kali MahaBhog', label: 'Kali MahaBhog' },
+  { value: 'Kali Prasad', label: 'Kali Prasad' },
+  { value: 'Kali Sweets', label: 'Kali Sweets' },
+  { value: 'Saraswati Protima', label: 'Saraswati Protima' },
+  { value: 'Saraswati Pujo', label: 'Saraswati Pujo' },
+  { value: 'Saraswati Flowers', label: 'Saraswati Flowers' },
+  { value: 'Saraswati Bhog', label: 'Saraswati Bhog' },
+  { value: 'Saraswati Saree', label: 'Saraswati Saree' },
+  { value: 'Saraswati MahaBhog', label: 'Saraswati MahaBhog' },
+  { value: 'Saraswati Prasad', label: 'Saraswati Prasad' },
+  { value: 'Saraswati Sweets', label: 'Saraswati Sweets' },
 ] as const;
 
 // --------------- Default Values ---------------
@@ -155,6 +246,8 @@ export const DEFAULTS = {
   STALL_NUMBER_DEFAULT: 0,
   STALL_INCOME_CATEGORY: 'Stall Booking',
   DONATION_INCOME_CATEGORY: 'Donation Item',
+  AD_INCOME_CATEGORY: 'Advertisement',
+  MEMBERSHIP_INCOME_CATEGORY: 'Membership',
 } as const;
 
 // --------------- Year Regex (for filtering DB keys) ---------------
