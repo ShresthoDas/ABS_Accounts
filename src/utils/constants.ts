@@ -15,6 +15,10 @@ export const DB_PATHS = {
   DONATIONS: 'Donations',
   ADS: 'Ads',
 
+  // Projected Budgets
+  PROJECTED_INCOME: 'ProjectedIncome',
+  PROJECTED_EXPENSE: 'ProjectedExpense',
+
   // Totals
   TOTAL_INCOME: 'total_income',
   TOTAL_EXPENSE: 'total_expense',
@@ -56,6 +60,12 @@ export const dbPath = {
   /** e.g. dbPath.ads("2024") => "UAT/Accounts/2024/Ads" */
   ads: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.ADS}`,
   
+  /** e.g. dbPath.projectedIncome("2024") => "UAT/Accounts/2024/ProjectedIncome" */
+  projectedIncome: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.PROJECTED_INCOME}`,
+  
+  /** e.g. dbPath.projectedExpense("2024") => "UAT/Accounts/2024/ProjectedExpense" */
+  projectedExpense: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.PROJECTED_EXPENSE}`,
+  
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
 };
@@ -76,6 +86,8 @@ export const ROUTES = {
   DONATION_LIST: '/donation-list',
   AD_TRACKER: '/ad-tracker',
   AD_LIST: '/ad-list',
+  PROJECTED_INCOME: '/projected-income',
+  PROJECTED_EXPENSE: '/projected-expense',
   LOGIN: '/login',
 } as const;
 
@@ -111,12 +123,12 @@ export const requiresReferenceNumber = (mode: string): boolean => {
 // --------------- Category Options ---------------
 export const INCOME_CATEGORIES = [
   { value: 'Advertisement', label: 'Advertisement' },
-  { value: 'Membership', label: 'Membership' },
+  { value: 'Membership Fee', label: 'Membership Fee' },
   { value: 'Corporate Donations', label: 'Corporate Donations' },
   { value: 'Donation Item', label: 'Donation Item' },
   { value: 'Spot Collection', label: 'Spot Collection' },
   { value: 'Dan Peti', label: 'Dan Peti' },
-  { value: 'Stall', label: 'Stall' },
+  { value: 'Stall Booking', label: 'Stall Booking' },
   { value: 'Picnic', label: 'Picnic' },
   { value: 'Bijoya Sommeloni', label: 'Bijoya Sommeloni' },
   { value: 'Dandiya Ticket', label: 'Dandiya Ticket' },

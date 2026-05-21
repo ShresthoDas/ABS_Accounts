@@ -146,6 +146,19 @@ export default function DashboardPage() {
       ],
     },
     {
+      title: "Budget Planning",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      color: "teal",
+      items: [
+        { label: "Projected Income", route: ROUTES.PROJECTED_INCOME, icon: trackerIcon },
+        { label: "Projected Expense", route: ROUTES.PROJECTED_EXPENSE, icon: listIcon },
+      ],
+    },
+    {
       title: "Advertisements",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,6 +180,7 @@ export default function DashboardPage() {
     orange: { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', ring: 'focus:ring-orange-500', light: 'bg-orange-50' },
     rose: { bg: 'bg-rose-600', hover: 'hover:bg-rose-700', ring: 'focus:ring-rose-500', light: 'bg-rose-50' },
     violet: { bg: 'bg-violet-600', hover: 'hover:bg-violet-700', ring: 'focus:ring-violet-500', light: 'bg-violet-50' },
+    teal: { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', ring: 'focus:ring-teal-500', light: 'bg-teal-50' },
   };
 
   if (loading) {
