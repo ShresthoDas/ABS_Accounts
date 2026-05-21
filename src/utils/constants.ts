@@ -13,6 +13,7 @@ export const DB_PATHS = {
   MEMBERS: 'Members',
   STALLS: 'Stalls',
   DONATIONS: 'Donations',
+  SPOT_COLLECTION: 'SpotCollection',
   ADS: 'Ads',
 
   // Projected Budgets
@@ -60,6 +61,9 @@ export const dbPath = {
   /** e.g. dbPath.ads("2024") => "UAT/Accounts/2024/Ads" */
   ads: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.ADS}`,
   
+  /** e.g. dbPath.spotCollection("2024") => "UAT/Accounts/2024/SpotCollection" */
+  spotCollection: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.SPOT_COLLECTION}`,
+  
   /** e.g. dbPath.projectedIncome("2024") => "UAT/Accounts/2024/ProjectedIncome" */
   projectedIncome: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.PROJECTED_INCOME}`,
   
@@ -86,6 +90,8 @@ export const ROUTES = {
   DONATION_LIST: '/donation-list',
   AD_TRACKER: '/ad-tracker',
   AD_LIST: '/ad-list',
+  SPOT_COLLECTION_TRACKER: '/spot-collection-tracker',
+  SPOT_COLLECTION_LIST: '/spot-collection-list',
   PROJECTED_INCOME: '/projected-income',
   PROJECTED_EXPENSE: '/projected-expense',
   LOGIN: '/login',
@@ -260,6 +266,7 @@ export const DEFAULTS = {
   DONATION_INCOME_CATEGORY: 'Donation Item',
   AD_INCOME_CATEGORY: 'Advertisement',
   MEMBERSHIP_INCOME_CATEGORY: 'Membership',
+  SPOT_COLLECTION_INCOME_CATEGORY: 'Spot Collection',
 } as const;
 
 // --------------- Year Regex (for filtering DB keys) ---------------

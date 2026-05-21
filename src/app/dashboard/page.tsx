@@ -159,6 +159,19 @@ export default function DashboardPage() {
       ],
     },
     {
+      title: "Spot Collection",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      color: "cyan",
+      items: [
+        { label: "New Collection", route: ROUTES.SPOT_COLLECTION_TRACKER, icon: trackerIcon },
+        { label: "Collection List", route: ROUTES.SPOT_COLLECTION_LIST, icon: listIcon },
+      ],
+    },
+    {
       title: "Advertisements",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,6 +193,7 @@ export default function DashboardPage() {
     orange: { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', ring: 'focus:ring-orange-500', light: 'bg-orange-50' },
     rose: { bg: 'bg-rose-600', hover: 'hover:bg-rose-700', ring: 'focus:ring-rose-500', light: 'bg-rose-50' },
     violet: { bg: 'bg-violet-600', hover: 'hover:bg-violet-700', ring: 'focus:ring-violet-500', light: 'bg-violet-50' },
+    cyan: { bg: 'bg-cyan-600', hover: 'hover:bg-cyan-700', ring: 'focus:ring-cyan-500', light: 'bg-cyan-50' },
     teal: { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', ring: 'focus:ring-teal-500', light: 'bg-teal-50' },
   };
 
