@@ -85,7 +85,7 @@ export default function MemberListPage() {
 
   // Check if user has permission to access this page
   const canAccess = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
+    (userData.userType === "Accounts" || userData.userType === "GB" || userData.userType === "Front Office");
 
   if (loading) {
     return (

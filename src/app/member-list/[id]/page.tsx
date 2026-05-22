@@ -39,6 +39,11 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<MemberItem | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentModeOfPayment, setPaymentModeOfPayment] = useState("Cash");
+  const [paymentChequeNumber, setPaymentChequeNumber] = useState("");
+
   const router = useRouter();
   const params = useParams();
 
@@ -232,6 +237,98 @@ export default function MemberDetailPage() {
     });
   };
 
+  const handleUpdatePaymentStatus = async () => {
+    if (!member || !userData || !user) return;
+    try {
+      setPaymentProcessing(true);
+      const currentYear = getCurrentYearString();
+      const memberRef = ref(db, `${dbPath.members(currentYear)}/${params.id}`);
+
+      // Get old data for audit
+      const oldData = { ...member };
+
+      // Generate receipt number
+      const receiptNum = await generateReceiptNumber(currentYear);
+
+      // Create income record with default amount 8000
+      const incomeKey = await createIncomeRecord(
+        {
+          ...member,
+          date: new Date().toISOString().split("T")[0],
+          name: member.name,
+          panNumber: member.panNumber || "",
+          mobileNumber: member.mobileNumber || null,
+          modeOfPayment: paymentModeOfPayment,
+          amount: DEFAULTS.MEMBER_AMOUNT,
+          chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+          inputBy: userData.name || member.inputBy,
+        },
+        currentYear,
+        receiptNum,
+        userData.name || user.email || "Unknown",
+        user.uid
+      );
+
+      // Update receipt counter
+      await updateReceiptCounter(currentYear);
+
+      // Update member record
+      const updatedData: any = {
+        ...member,
+        paymentStatus: true,
+        amount: DEFAULTS.MEMBER_AMOUNT,
+        receiptNumber: receiptNum,
+        incomeKey: incomeKey as string,
+        modeOfPayment: paymentModeOfPayment,
+        chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.uid,
+      };
+
+      // Remove key from data since it's the DB key
+      delete updatedData.key;
+
+      await update(memberRef, updatedData);
+
+      // Log audit
+      await logAudit({
+        action: "UPDATE",
+        entityType: "Member",
+        entityId: params.id as string,
+        previousData: oldData,
+        newData: { ...oldData, paymentStatus: true, amount: DEFAULTS.MEMBER_AMOUNT, receiptNumber: receiptNum, incomeKey: incomeKey as string, modeOfPayment: paymentModeOfPayment, chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null) },
+        changedBy: userData.name || user.email || "Unknown",
+        changedByUid: user.uid,
+        changedAt: new Date().toISOString(),
+      });
+
+      // Generate receipt PDF
+      generateReceiptPDF({
+        date: new Date().toISOString().split("T")[0],
+        receiptNumber: receiptNum,
+        name: member.name,
+        mobileNumber: member.mobileNumber || null,
+        panNumber: member.panNumber || "",
+        amount: parseInt(DEFAULTS.MEMBER_AMOUNT),
+        category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
+        modeOfPayment: paymentModeOfPayment,
+        chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+        inputBy: userData.name || member.inputBy,
+        createdBy: user.uid,
+        createdAt: new Date().toISOString(),
+      });
+
+      alert(`Payment marked as Paid. Income record created and receipt generated.\nReceipt Number: ${receiptNum}`);
+      setShowPaymentConfirm(false);
+      fetchMemberDetail();
+    } catch (error) {
+      console.error("Error updating payment status:", error);
+      alert("Error updating payment status. Please try again.");
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!member || !userData || !user) return;
     try {
@@ -420,7 +517,7 @@ export default function MemberDetailPage() {
   };
 
   const canAccess = userData && 
-    (userData.userType === "Accounts" || userData.userType === "GB");
+    (userData.userType === "Accounts" || userData.userType === "GB" || userData.userType === "Front Office");
 
   if (loading) {
     return (
@@ -672,6 +769,21 @@ export default function MemberDetailPage() {
                   </svg>
                   Edit
                 </button>
+                {!member.paymentStatus && (
+                  <button
+                    onClick={() => {
+                      setPaymentModeOfPayment("Cash");
+                      setPaymentChequeNumber("");
+                      setShowPaymentConfirm(true);
+                    }}
+                    className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Update Payment Status
+                  </button>
+                )}
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
@@ -814,6 +926,83 @@ export default function MemberDetailPage() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Payment Confirmation Modal */}
+          {showPaymentConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Confirm Payment</h2>
+                <p className="text-gray-600 mb-2">
+                  Mark this member as <strong>Paid</strong>?
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  This will:
+                  <br />• Set payment status to <strong>Paid</strong>
+                  <br />• Create an income record of <strong>₹ {parseInt(DEFAULTS.MEMBER_AMOUNT).toLocaleString('en-IN')}</strong>
+                  <br />• Generate a receipt number and PDF
+                  <br />• Link the income record to this member
+                </p>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mode of Payment</label>
+                    <select
+                      value={paymentModeOfPayment}
+                      onChange={(e) => {
+                        setPaymentModeOfPayment(e.target.value);
+                        if (e.target.value === "Cash") {
+                          setPaymentChequeNumber("");
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Cheque">Cheque</option>
+                      <option value="NEFT">NEFT</option>
+                    </select>
+                  </div>
+                  {paymentModeOfPayment !== "Cash" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cheque/Reference Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentChequeNumber}
+                        onChange={(e) => setPaymentChequeNumber(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        required={paymentModeOfPayment !== "Cash"}
+                      />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Member: <strong>{member.name}</strong> (ID: {member.memberId})
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      if (paymentModeOfPayment !== "Cash" && !paymentChequeNumber.trim()) {
+                        alert("Please enter the Cheque/Reference number.");
+                        return;
+                      }
+                      handleUpdatePaymentStatus();
+                    }}
+                    disabled={paymentProcessing}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium disabled:opacity-50"
+                  >
+                    {paymentProcessing ? "Processing..." : "Yes, Mark as Paid"}
+                  </button>
+                  <button
+                    onClick={() => setShowPaymentConfirm(false)}
+                    disabled={paymentProcessing}
+                    className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Delete Confirmation Modal */}

@@ -1,0 +1,40 @@
+import { NextRequest, NextResponse } from "next/server";
+import * as admin from "firebase-admin";
+
+// Initialize Firebase Admin SDK if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { uid, name, mobileNo, userType, email } = await request.json();
+
+    if (!uid || !name || !mobileNo || !userType) {
+      return NextResponse.json({ error: "Missing required fields: uid, name, mobileNo, userType" }, { status: 400 });
+    }
+
+    const dbAdmin = admin.database();
+    const userRef = dbAdmin.ref(`UAT/Accounts/Users/${uid}`);
+
+    await userRef.set({
+      name,
+      mobileNo,
+      userType,
+      email: email || "",
+      createdAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ success: true, message: "User details saved successfully." });
+  } catch (error: any) {
+    console.error("Save user error:", error);
+    return NextResponse.json({ error: "Failed to save user details. " + (error.message || "") }, { status: 500 });
+  }
+}

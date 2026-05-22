@@ -79,6 +79,12 @@ export default function DashboardPage() {
     </svg>
   );
 
+  const userManagementIcon = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+
   const featureGroups: FeatureGroup[] = [
     {
       title: "Income",
@@ -187,14 +193,14 @@ export default function DashboardPage() {
   ];
 
   const colorMap: Record<string, { bg: string; hover: string; ring: string; light: string }> = {
-    blue: { bg: 'bg-blue-600', hover: 'hover:bg-blue-700', ring: 'focus:ring-blue-500', light: 'bg-blue-50' },
-    green: { bg: 'bg-green-600', hover: 'hover:bg-green-700', ring: 'focus:ring-green-500', light: 'bg-green-50' },
-    indigo: { bg: 'bg-indigo-600', hover: 'hover:bg-indigo-700', ring: 'focus:ring-indigo-500', light: 'bg-indigo-50' },
-    orange: { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', ring: 'focus:ring-orange-500', light: 'bg-orange-50' },
-    rose: { bg: 'bg-rose-600', hover: 'hover:bg-rose-700', ring: 'focus:ring-rose-500', light: 'bg-rose-50' },
-    violet: { bg: 'bg-violet-600', hover: 'hover:bg-violet-700', ring: 'focus:ring-violet-500', light: 'bg-violet-50' },
-    cyan: { bg: 'bg-cyan-600', hover: 'hover:bg-cyan-700', ring: 'focus:ring-cyan-500', light: 'bg-cyan-50' },
-    teal: { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', ring: 'focus:ring-teal-500', light: 'bg-teal-50' },
+    blue: { bg: "bg-blue-600", hover: "hover:bg-blue-700", ring: "focus:ring-blue-500", light: "bg-blue-50" },
+    green: { bg: "bg-green-600", hover: "hover:bg-green-700", ring: "focus:ring-green-500", light: "bg-green-50" },
+    indigo: { bg: "bg-indigo-600", hover: "hover:bg-indigo-700", ring: "focus:ring-indigo-500", light: "bg-indigo-50" },
+    orange: { bg: "bg-orange-600", hover: "hover:bg-orange-700", ring: "focus:ring-orange-500", light: "bg-orange-50" },
+    rose: { bg: "bg-rose-600", hover: "hover:bg-rose-700", ring: "focus:ring-rose-500", light: "bg-rose-50" },
+    violet: { bg: "bg-violet-600", hover: "hover:bg-violet-700", ring: "focus:ring-violet-500", light: "bg-violet-50" },
+    cyan: { bg: "bg-cyan-600", hover: "hover:bg-cyan-700", ring: "focus:ring-cyan-500", light: "bg-cyan-50" },
+    teal: { bg: "bg-teal-600", hover: "hover:bg-teal-700", ring: "focus:ring-teal-500", light: "bg-teal-50" },
   };
 
   if (loading) {
@@ -202,6 +208,22 @@ export default function DashboardPage() {
       <ProtectedRoute>
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div>Loading...</div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  // Check if userType is "Front Office", "GB", or "Accounts"
+  const isAuthorized = userData && (userData.userType === "Front Office" || userData.userType === "GB" || userData.userType === "Accounts");
+
+  if (!isAuthorized) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Access Denied</h2>
+            <p className="text-gray-600">You do not have permission to view this dashboard.</p>
+          </div>
         </div>
       </ProtectedRoute>
     );
@@ -215,80 +237,105 @@ export default function DashboardPage() {
           
           {userData ? (
             <div className="space-y-6">
-              {/* Financial Year View - Featured at top */}
-              {canAccess && (
-                <button
-                  onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
-                  className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-200 p-5 flex items-center justify-between group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 p-2.5 rounded-full">
-                      {financialYearIcon}
+              {/* Featured Actions for GB/Accounts */}
+              {canAccess && userData.userType !== "Front Office" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
+                    className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-200 p-5 flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/20 p-2.5 rounded-full">
+                        {financialYearIcon}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-semibold">Financial Year View</p>
+                        <p className="text-teal-100 text-sm">View complete yearly financial summary</p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-lg font-semibold">Financial Year View</p>
-                      <p className="text-teal-100 text-sm">View complete yearly financial summary</p>
+                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                  </div>
-                  <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={() => router.push(ROUTES.USER_MANAGEMENT)}
+                    className="w-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg shadow-md hover:from-indigo-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-200 p-5 flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/20 p-2.5 rounded-full">
+                        {userManagementIcon}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-semibold">User Management</p>
+                        <p className="text-indigo-100 text-sm">Create users & reset passwords</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
               )}
 
               {/* Feature Group Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {featureGroups.map((group) => {
-                  const colors = colorMap[group.color];
-                  return (
-                    <div key={group.title} className="bg-white rounded-lg shadow-md overflow-hidden">
-                      {/* Card Header */}
-                      <div className={`${colors.light} px-5 py-3.5 flex items-center gap-2.5 border-b border-gray-100`}>
-                        <div className={`${colors.bg} text-white p-1.5 rounded-lg`}>
-                          {group.icon}
+                {featureGroups
+                  .filter(group => userData.userType === "Front Office" ? ["Spot Collection", "Members"].includes(group.title) : true)
+                  .map((group) => {
+                    const colors = colorMap[group.color];
+                    return (
+                      <div key={group.title} className="bg-white rounded-lg shadow-md overflow-hidden">
+                        {/* Card Header */}
+                        <div className={`${colors.light} px-5 py-3.5 flex items-center gap-2.5 border-b border-gray-100`}>
+                          <div className={`${colors.bg} text-white p-1.5 rounded-lg`}>
+                            {group.icon}
+                          </div>
+                          <h2 className="text-base font-semibold text-gray-800">{group.title}</h2>
                         </div>
-                        <h2 className="text-base font-semibold text-gray-800">{group.title}</h2>
-                      </div>
-                      {/* Card Body with Action Buttons */}
-                      <div className="p-4">
-                        <div className="flex gap-3">
-                          {group.items.map((item) => (
-                            <button
-                              key={item.label}
-                              onClick={() => router.push(item.route)}
-                              className={`flex-1 flex items-center justify-center gap-2 ${colors.bg} text-white px-4 py-2.5 rounded-md ${colors.hover} ${colors.ring} focus:outline-none focus:ring-2 font-medium text-sm transition-colors duration-200`}
-                            >
-                              {item.icon}
-                              {item.label}
-                            </button>
-                          ))}
+                        {/* Card Body with Action Buttons */}
+                        <div className="p-4">
+                          <div className="flex gap-3">
+                            {group.items.map((item) => (
+                              <button
+                                key={item.label}
+                                onClick={() => router.push(item.route)}
+                                className={`flex-1 flex items-center justify-center gap-2 ${colors.bg} text-white px-4 py-2.5 rounded-md ${colors.hover} ${colors.ring} focus:outline-none focus:ring-2 font-medium text-sm transition-colors duration-200`}
+                              >
+                                {item.icon}
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
 
               {/* Summary Section */}
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100">
-                  <h2 className="text-base font-semibold text-gray-800">Financial Summary</h2>
-                </div>
-                <div className="p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="border rounded-lg p-4 bg-green-50 hover:shadow-sm transition-shadow">
-                      <p className="text-sm text-gray-500 mb-1">Total Income ({getCurrentYearString()})</p>
-                      <p className="text-2xl font-bold text-green-600">₹ {totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    <div className="border rounded-lg p-4 bg-red-50 hover:shadow-sm transition-shadow">
-                      <p className="text-sm text-gray-500 mb-1">Total Expense ({getCurrentYearString()})</p>
-                      <p className="text-2xl font-bold text-red-600">₹ {totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              {userData.userType !== "Front Office" && (
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-800">Financial Summary</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="border rounded-lg p-4 bg-green-50 hover:shadow-sm transition-shadow">
+                        <p className="text-sm text-gray-500 mb-1">Total Income ({getCurrentYearString()})</p>
+                        <p className="text-2xl font-bold text-green-600">₹ {totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                      <div className="border rounded-lg p-4 bg-red-50 hover:shadow-sm transition-shadow">
+                        <p className="text-sm text-gray-500 mb-1">Total Expense ({getCurrentYearString()})</p>
+                        <p className="text-2xl font-bold text-red-600">₹ {totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* User Profile Section */}
               <div className="bg-white rounded-lg shadow-md overflow-hidden">

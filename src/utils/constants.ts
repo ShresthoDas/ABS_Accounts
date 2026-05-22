@@ -95,17 +95,27 @@ export const ROUTES = {
   PROJECTED_INCOME: '/projected-income',
   PROJECTED_EXPENSE: '/projected-expense',
   LOGIN: '/login',
+  USER_MANAGEMENT: '/user-management',
 } as const;
 
 // --------------- User Types (permissions) ---------------
 export const USER_TYPES = {
   ACCOUNTS: 'Accounts',
   GB: 'GB',
+  FRONT_OFFICE: 'Front Office',
+  MEMBER: 'Member',
 } as const;
 
 export const ALLOWED_USER_TYPES = [USER_TYPES.ACCOUNTS, USER_TYPES.GB] as const;
 
-// Helper to check if a user type has access
+export const ALL_USER_TYPE_OPTIONS = [
+  { value: 'GB', label: 'GB' },
+  { value: 'Accounts', label: 'Accounts' },
+  { value: 'Front Office', label: 'Front Office' },
+  { value: 'Member', label: 'Member' },
+] as const;
+
+// Helper to check if a user type has access (GB or Accounts)
 export const hasAccess = (userType: string | undefined | null): boolean => {
   return ALLOWED_USER_TYPES.includes(userType as typeof ALLOWED_USER_TYPES[number]);
 };
