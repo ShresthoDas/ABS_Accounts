@@ -9,8 +9,30 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <AuthProvider>{children}</AuthProvider>
+      <body className="relative">
+        {/* Watermark overlay on top of all content */}
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <img
+            src="/abslogo.jpg"
+            alt="ABS Logo"
+            style={{
+              width: '600px',
+              height: 'auto',
+              opacity: 0.1,
+            }}
+          />
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
+          <AuthProvider>{children}</AuthProvider>
+        </div>
       </body>
     </html>
   );
