@@ -15,7 +15,7 @@ if (!admin.apps.length) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { uid, name, mobileNo, userType, email } = await request.json();
+    const { uid, name, mobileNo, userType, email, memberId } = await request.json();
 
     if (!uid || !name || !mobileNo || !userType) {
       return NextResponse.json({ error: "Missing required fields: uid, name, mobileNo, userType" }, { status: 400 });
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       mobileNo,
       userType,
       email: email || "",
+      memberId: memberId || null,
       createdAt: new Date().toISOString(),
     });
 

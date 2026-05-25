@@ -15,6 +15,7 @@ export const DB_PATHS = {
   DONATIONS: 'Donations',
   SPOT_COLLECTION: 'SpotCollection',
   ADS: 'Ads',
+  UNAUTH_QUEUE: 'UnauthQueue',
 
   // Projected Budgets
   PROJECTED_INCOME: 'ProjectedIncome',
@@ -72,6 +73,7 @@ export const dbPath = {
   
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
+  unAuthQueue: `${DB_PATHS.ROOT}/${DB_PATHS.UNAUTH_QUEUE}`,
 };
 
 // --------------- App Route Paths ---------------
@@ -95,6 +97,8 @@ export const ROUTES = {
   PROJECTED_INCOME: '/projected-income',
   PROJECTED_EXPENSE: '/projected-expense',
   LOGIN: '/login',
+  SIGN_UP: '/sign-up',
+  UNAUTH_QUEUE: '/unauth-queue',
   USER_MANAGEMENT: '/user-management',
 } as const;
 
@@ -108,11 +112,19 @@ export const USER_TYPES = {
 
 export const ALLOWED_USER_TYPES = [USER_TYPES.ACCOUNTS, USER_TYPES.GB] as const;
 
-export const ALL_USER_TYPE_OPTIONS = [
+export const ALL_ADMIN_USER_TYPE_OPTIONS = [
   { value: 'GB', label: 'GB' },
   { value: 'Accounts', label: 'Accounts' },
   { value: 'Front Office', label: 'Front Office' },
   { value: 'Member', label: 'Member' },
+] as const;
+
+export const ALL_SIGNUP_USER_TYPE_OPTIONS = [
+  { value: 'GB', label: 'GB' },
+  { value: 'Accounts', label: 'Accounts' },
+  { value: 'Front Office', label: 'Front Office' },
+  { value: 'Member', label: 'Member' },
+  { value: 'New Member', label: 'New Member' },
 ] as const;
 
 // Helper to check if a user type has access (GB or Accounts)

@@ -6,7 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { hasAccess, ROUTES, ALL_USER_TYPE_OPTIONS } from "../../utils/constants";
+import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS } from "../../utils/constants";
 
 export default function UserManagementPage() {
   const { user } = useAuth();
@@ -264,7 +264,7 @@ export default function UserManagementPage() {
                       onChange={e => setUserType(e.target.value)}
                       required
                     >
-                      {ALL_USER_TYPE_OPTIONS.map(opt => (
+                      {ALL_ADMIN_USER_TYPE_OPTIONS.map(opt => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
                         </option>

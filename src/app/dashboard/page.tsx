@@ -278,7 +278,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {/* Featured Actions for GB/Accounts */}
               {canAccess && userData.userType !== "Front Office" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <button
                     onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-200 p-5 flex items-center justify-between group"
@@ -309,6 +309,27 @@ export default function DashboardPage() {
                       <div className="text-left">
                         <p className="text-lg font-semibold">User Management</p>
                         <p className="text-indigo-100 text-sm">Create users & reset passwords</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => router.push(ROUTES.UNAUTH_QUEUE)}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg shadow-md hover:from-emerald-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all duration-200 p-5 flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/20 p-2.5 rounded-full">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-semibold">Pending Approvals</p>
+                        <p className="text-emerald-100 text-sm">Review pending signup/member requests</p>
                       </div>
                     </div>
                     <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
