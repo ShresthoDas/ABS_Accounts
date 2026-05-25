@@ -1,5 +1,6 @@
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
+import { FinancialYearProvider } from "../context/FinancialYearContext";
 
 export const metadata = {
   title: "ABS Accounts Portal",
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         </div>
         <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <FinancialYearProvider>{children}</FinancialYearProvider>
+          </AuthProvider>
         </div>
       </body>
     </html>

@@ -8,7 +8,8 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearString, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -18,6 +19,7 @@ const SPOT_COLLECTION_ALLOWED_TYPES = ["Accounts", "GB", "Front Office"];
 
 export default function SpotCollectionTrackerPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -74,7 +76,7 @@ export default function SpotCollectionTrackerPage() {
     e.preventDefault();
     if (validateForm()) {
       try {
-        const currentYear = getCurrentYearString();
+        const currentYear = selectedYear;
         const amt = roundMoney(parseFloat(amount) || 0);
 
         // Generate receipt number

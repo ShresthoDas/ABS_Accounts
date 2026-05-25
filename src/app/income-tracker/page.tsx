@@ -8,12 +8,14 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearString, getCurrentYearShort, INCOME_CATEGORIES } from "../../utils/constants";
+import { dbPath, getCurrentYearShort, INCOME_CATEGORIES } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function IncomeTrackerPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
@@ -121,7 +123,7 @@ export default function IncomeTrackerPage() {
     if (validateForm()) {
       try {
         const incomeAmount = parseFloat(amount);
-        const currentYear = getCurrentYearString();
+        const currentYear = selectedYear;
         
         // Create a unique key for this income record
         const newIncomeRef = push(ref(db, dbPath.income(currentYear)));

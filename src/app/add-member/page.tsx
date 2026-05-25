@@ -9,6 +9,7 @@ import { ref, get, set, update, push } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
 import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -17,6 +18,7 @@ export default function AddMemberPage() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
+  const { selectedYear } = useFinancialYear();
   const router = useRouter();
 
   // Form state
@@ -32,7 +34,7 @@ export default function AddMemberPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(false);
-  const [amount, setAmount] = useState("8000");
+  const [amount, setAmount] =useState<string>(DEFAULTS.MEMBER_AMOUNT);
   const [receiptNumber, setReceiptNumber] = useState("");
 
   // Validation errors
@@ -165,7 +167,7 @@ export default function AddMemberPage() {
 
         if (paymentStatus) {
           memberData.modeOfPayment = modeOfPayment;
-          memberData.amount = amount;
+          memberData.amount = amount.trim() ? parseFloat(amount) : 0;
           memberData.chequeNumber = modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null;
         }
 
@@ -176,7 +178,7 @@ export default function AddMemberPage() {
         await set(newMemberRef, memberData);
 
         // Update the member counter
-        const memberCounterRef = ref(db, `UAT/Accounts/MemberCounter`);
+        const memberCounterRef = ref(db,  dbPath.memberCounter);
         const counterSnapshot = await get(memberCounterRef);
         
         if (counterSnapshot.exists()) {

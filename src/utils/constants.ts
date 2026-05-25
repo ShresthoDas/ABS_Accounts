@@ -268,14 +268,14 @@ export const DONATION_EVENT_CATEGORIES = [
 
 // --------------- Default Values ---------------
 export const DEFAULTS = {
-  MEMBER_AMOUNT: '8000',
+  MEMBER_AMOUNT: "8000",
   MEMBER_ID_PREFIX: 'ABSPM-',
   RECEIPT_PREFIX: 'ABS',
   STALL_NUMBER_DEFAULT: 0,
   STALL_INCOME_CATEGORY: 'Stall Booking',
   DONATION_INCOME_CATEGORY: 'Donation Item',
   AD_INCOME_CATEGORY: 'Advertisement',
-  MEMBERSHIP_INCOME_CATEGORY: 'Membership',
+  MEMBERSHIP_INCOME_CATEGORY: 'Membership Fee',
   SPOT_COLLECTION_INCOME_CATEGORY: 'Spot Collection',
 } as const;
 

@@ -8,7 +8,8 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearString, getCurrentYearShort } from "../../../utils/constants";
+import { dbPath, ROUTES, hasAccess, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 // Helper to round monetary values to 2 decimal places (avoids floating point issues like 30000 - 0 = 29999.9995)
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -39,6 +40,7 @@ type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 export default function StallDetailPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,7 +81,7 @@ export default function StallDetailPage() {
   const fetchStallDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const stallRef = ref(db, `${dbPath.stalls(currentYear)}/${params.id}`);
       const snapshot = await get(stallRef);
 
@@ -115,7 +117,7 @@ export default function StallDetailPage() {
     if (!stall || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const stallRef = ref(db, `${dbPath.stalls(currentYear)}/${params.id}`);
       const oldData = { ...stall };
 
@@ -184,7 +186,7 @@ export default function StallDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const stallRef = ref(db, `${dbPath.stalls(currentYear)}/${params.id}`);
       const oldData = { ...stall };
       const oldPaidAmount = stall.paidAmount || 0;

@@ -9,6 +9,7 @@ import { ref, get, set, update, remove, push } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 interface MemberItem {
   key: string;
@@ -43,6 +44,7 @@ export default function MemberDetailPage() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentModeOfPayment, setPaymentModeOfPayment] = useState("Cash");
   const [paymentChequeNumber, setPaymentChequeNumber] = useState("");
+  const { selectedYear } = useFinancialYear();
 
   const router = useRouter();
   const params = useParams();
@@ -81,7 +83,7 @@ export default function MemberDetailPage() {
   const fetchMemberDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const memberRef = ref(db, `${dbPath.members(currentYear)}/${params.id}`);
       const snapshot = await get(memberRef);
 

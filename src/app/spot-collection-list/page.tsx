@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, getCurrentYearString } from "../../utils/constants";
+import { dbPath, ROUTES } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface SpotCollectionItem {
   key: string;
@@ -26,6 +27,7 @@ const SPOT_COLLECTION_ALLOWED_TYPES = ["Accounts", "GB", "Front Office"];
 
 export default function SpotCollectionListPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<SpotCollectionItem[]>([]);
@@ -45,7 +47,7 @@ export default function SpotCollectionListPage() {
   const fetchRecords = async () => {
     try {
       setRecordsLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const snapshot = await get(ref(db, dbPath.spotCollection(currentYear)));
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -94,7 +96,7 @@ export default function SpotCollectionListPage() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Spot Collections for {getCurrentYearString()}</h2>
+                <h2 className="text-xl font-semibold">Spot Collections for {selectedYear}</h2>
                 <div className="flex gap-2">
                   <button onClick={() => router.push(ROUTES.SPOT_COLLECTION_TRACKER)} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium">+ New Spot Collection</button>
                   <button onClick={fetchRecords} className="text-blue-600 hover:text-blue-800 text-sm">Refresh</button>

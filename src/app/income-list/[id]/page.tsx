@@ -8,7 +8,8 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, getCurrentYearString, DEFAULTS, INCOME_CATEGORIES } from "../../../utils/constants";
+import { dbPath, DEFAULTS, INCOME_CATEGORIES } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 interface IncomeItem {
   key: string;
@@ -32,6 +33,7 @@ type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function IncomeDetailPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,7 +79,7 @@ export default function IncomeDetailPage() {
   const fetchIncomeDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
       const snapshot = await get(incomeRef);
 
@@ -113,7 +115,7 @@ export default function IncomeDetailPage() {
     if (!income || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
 
       // Get old data for audit
@@ -163,7 +165,7 @@ export default function IncomeDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const incomeRef = ref(db, `${dbPath.income(currentYear)}/${params.id}`);
       const newAmount = parseFloat(amount);
       const amountDifference = newAmount - income.amount;

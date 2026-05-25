@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, getCurrentYearString } from "../../utils/constants";
+import { dbPath } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface MemberItem {
   key: string;
@@ -31,6 +32,7 @@ interface MemberItem {
 
 export default function MemberLandingPage() {
   const { user, logout } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [member, setMember] = useState<MemberItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function MemberLandingPage() {
 
   const fetchMemberDetail = async () => {
     try {
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const membersRef = ref(db, dbPath.members(currentYear));
       const snapshot = await get(membersRef);
 

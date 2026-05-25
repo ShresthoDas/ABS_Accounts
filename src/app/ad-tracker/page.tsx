@@ -8,20 +8,18 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, AD_TYPES, PAYMENT_MODES, requiresReferenceNumber, DEFAULTS, getCurrentYearString, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, AD_TYPES, PAYMENT_MODES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
-// Helper to round monetary values to 2 decimal places (avoids floating point issues like 30000 - 0 = 29999.9995)
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
-
 type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 export default function AdTrackerPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  // Form state
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
   const [panNumber, setPanNumber] = useState("");
@@ -35,446 +33,105 @@ export default function AdTrackerPage() {
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
-
-  // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (user) {
-      getUserDoc(user.uid)
-        .then((data) => {
-          setUserData(data);
-          if (data && data.name) {
-            setInputBy(data.name);
-          }
-        })
-        .finally(() => setLoading(false));
+      getUserDoc(user.uid).then((data) => { setUserData(data); if (data?.name) setInputBy(data.name); }).finally(() => setLoading(false));
     }
   }, [user]);
 
-  // Set current date as default
-  useEffect(() => {
-    const today = new Date();
-    const formattedDate = today.toISOString().split("T")[0];
-    setDate(formattedDate);
-  }, []);
+  useEffect(() => { setDate(new Date().toISOString().split("T")[0]); }, []);
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+    const ne: Record<string, string> = {};
     const paid = roundMoney(parseFloat(paidAmount) || 0);
-
-    if (!name.trim()) {
-      newErrors.name = "Name is mandatory";
-    }
-
-    if (!panNumber.trim()) {
-      newErrors.panNumber = "PAN Number is mandatory";
-    }
-
-    if (!mobileNumber.trim()) {
-      newErrors.mobileNumber = "Mobile number is mandatory";
-    } else if (!/^\d{10}$/.test(mobileNumber.trim())) {
-      newErrors.mobileNumber = "Enter a valid 10-digit mobile number";
-    }
-
-    if (!adType) {
-      newErrors.adType = "Please select an ad type";
-    }
-
-    if (adType === "Banner" && !size.trim()) {
-      newErrors.size = "Please enter the banner size";
-    }
-
-    if (adType === "LED" && !videoLength.trim()) {
-      newErrors.videoLength = "Please enter the video length";
-    }
-
+    if (!name.trim()) ne.name = "Name is mandatory";
+    if (!panNumber.trim()) ne.panNumber = "PAN Number is mandatory";
+    if (!mobileNumber.trim()) ne.mobileNumber = "Mobile is mandatory";
+    else if (!/^\d{10}$/.test(mobileNumber.trim())) ne.mobileNumber = "Invalid mobile";
+    if (!adType) ne.adType = "Select ad type";
+    if (adType === "Banner" && !size.trim()) ne.size = "Enter size";
+    if (adType === "LED" && !videoLength.trim()) ne.videoLength = "Enter video length";
     const total = roundMoney(parseFloat(totalAmount) || 0);
-    if (total <= 0) {
-      newErrors.totalAmount = "Total amount must be greater than 0";
-    }
-
-    if (paid > total) {
-      newErrors.paidAmount = "Paid amount cannot exceed total amount";
-    }
-
-    if (paid > 0 && !modeOfPayment) {
-      newErrors.modeOfPayment = "Please select a mode of payment";
-    }
-
-    if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
-      newErrors.chequeNumber = "Cheque/Reference number is mandatory for " + modeOfPayment;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (total <= 0) ne.totalAmount = "Amount must be > 0";
+    if (paid > total) ne.paidAmount = "Paid cannot exceed total";
+    if (paid > 0 && !modeOfPayment) ne.modeOfPayment = "Select payment mode";
+    if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) ne.chequeNumber = "Required";
+    setErrors(ne); return Object.keys(ne).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (validateForm()) {
-      try {
-        const currentYear = getCurrentYearString();
-        const paid = roundMoney(parseFloat(paidAmount) || 0);
-        const total = roundMoney(parseFloat(totalAmount) || 0);
-        const pending = roundMoney(total - paid);
-
-        // Create a unique key for this ad record
-        const newAdRef = push(ref(db, dbPath.ads(currentYear)));
-        const adKey = newAdRef.key;
-
-        const adData: Record<string, any> = {
-          key: adKey,
-          date,
-          name: name.trim(),
-          panNumber: panNumber.trim().toUpperCase(),
-          mobileNumber: mobileNumber.trim(),
-          adType,
-          quantity: parseInt(quantity) || 1,
-          totalAmount: total,
-          paidAmount: paid,
-          pendingAmount: pending,
-          inputBy,
-          createdAt: new Date().toISOString(),
-          createdBy: user?.uid,
-        };
-
-        if (adType === "Banner") {
-          adData.size = size.trim();
-        } else if (adType === "LED") {
-          adData.videoLength = videoLength.trim();
-        }
-
-        if (paid > 0) {
-          adData.modeOfPayment = modeOfPayment;
-          adData.chequeNumber = requiresReferenceNumber(modeOfPayment) ? chequeNumber : null;
-
-          // Generate receipt number & create income record
-          const receiptYear = getCurrentYearShort();
-          const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
-          const counterSnapshot = await get(receiptCounterRef);
-          let nextReceiptNum = 1;
-          if (counterSnapshot.exists()) {
-            nextReceiptNum = counterSnapshot.val() + 1;
-          }
-          const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
-
-          const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
-          const incomeKey = newIncomeRef.key;
-
-          const incomeData = {
-            key: incomeKey,
-            date,
-            receiptNumber: newReceiptNumber,
-            name: name.trim(),
-            mobileNumber: mobileNumber.trim(),
-            panNumber: panNumber.trim().toUpperCase(),
-            amount: paid,
-            category: DEFAULTS.AD_INCOME_CATEGORY,
-            modeOfPayment,
-            chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-            inputBy,
-            createdAt: new Date().toISOString(),
-            createdBy: user?.uid,
-            adLink: adKey,
-          };
-
-          await set(newIncomeRef, incomeData);
-
-          // Update total income
-          const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-          const totalIncomeSnapshot = await get(totalIncomeRef);
-          if (totalIncomeSnapshot.exists()) {
-            await set(totalIncomeRef, roundMoney(totalIncomeSnapshot.val() + paid));
-          } else {
-            await set(totalIncomeRef, paid);
-          }
-
-          // Update receipt counter
-          await set(receiptCounterRef, nextReceiptNum);
-
-          // Store income reference on ad record
-          adData.incomeKey = incomeKey;
-          adData.receiptNumber = newReceiptNumber;
-
-          // Generate and download receipt PDF
-          generateReceiptPDF(incomeData);
-        }
-
-        // Save ad record
-        await set(newAdRef, adData);
-
-        // Log audit
-        await logAudit({
-          action: "CREATE",
-          entityType: "Ad",
-          entityId: adKey as string,
-          previousData: null,
-          newData: adData,
-          changedBy: userData?.name || user?.email || "Unknown",
-          changedByUid: user?.uid || "",
-          changedAt: new Date().toISOString(),
-        });
-
-        alert("Advertisement booking recorded successfully!");
-        router.push(ROUTES.AD_LIST);
-      } catch (error) {
-        console.error("Error saving ad booking:", error);
-        alert("Error saving ad booking. Please try again.");
+    if (!validateForm()) return;
+    try {
+      const currentYear = selectedYear;
+      const paid = roundMoney(parseFloat(paidAmount) || 0);
+      const total = roundMoney(parseFloat(totalAmount) || 0);
+      const pending = roundMoney(total - paid);
+      const newAdRef = push(ref(db, dbPath.ads(currentYear)));
+      const adKey = newAdRef.key;
+      const adData: Record<string, any> = { key: adKey, date, name: name.trim(), panNumber: panNumber.trim().toUpperCase(), mobileNumber: mobileNumber.trim(), adType, quantity: parseInt(quantity) || 1, totalAmount: total, paidAmount: paid, pendingAmount: pending, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid };
+      if (adType === "Banner") adData.size = size.trim();
+      else if (adType === "LED") adData.videoLength = videoLength.trim();
+      if (paid > 0) {
+        adData.modeOfPayment = modeOfPayment;
+        adData.chequeNumber = requiresReferenceNumber(modeOfPayment) ? chequeNumber : null;
+        const receiptYear = getCurrentYearShort();
+        const rcRef = ref(db, dbPath.receiptCounter(receiptYear));
+        const rcSnap = await get(rcRef);
+        let n = 1; if (rcSnap.exists()) n = rcSnap.val() + 1;
+        const rn = `ABS/${receiptYear}/${n}`;
+        const incRef = push(ref(db, dbPath.income(currentYear)));
+        const ik = incRef.key;
+        await set(incRef, { key: ik, date, receiptNumber: rn, name: name.trim(), mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(), amount: paid, category: DEFAULTS.AD_INCOME_CATEGORY, modeOfPayment, chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, adLink: adKey });
+        const tiRef = ref(db, dbPath.totalIncome(currentYear));
+        const tiSnap = await get(tiRef);
+        await set(tiRef, tiSnap.exists() ? roundMoney(tiSnap.val() + paid) : paid);
+        await set(rcRef, n);
+        adData.incomeKey = ik; adData.receiptNumber = rn;
+        generateReceiptPDF({ date, receiptNumber: rn, name: name.trim(), panNumber: panNumber.trim().toUpperCase(), amount: paid, category: DEFAULTS.AD_INCOME_CATEGORY, modeOfPayment: modeOfPayment || "Cash", inputBy: inputBy || userData?.name || "" });
       }
-    }
+      await set(newAdRef, adData);
+      await logAudit({ action: "CREATE", entityType: "Ad", entityId: adKey as string, previousData: null, newData: adData, changedBy: userData?.name || user?.email || "Unknown", changedByUid: user?.uid || "", changedAt: new Date().toISOString() });
+      alert("Ad booking recorded!"); router.push(ROUTES.AD_LIST);
+    } catch (error) { console.error(error); alert("Error."); }
   };
 
   const paid = roundMoney(parseFloat(paidAmount) || 0);
   const total = roundMoney(parseFloat(totalAmount) || 0);
   const pending = roundMoney(total - paid);
-  const showPaymentDetails = paid > 0;
 
-  if (loading) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div>Loading...</div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
+  if (loading) return (<ProtectedRoute><div className="min-h-screen flex items-center justify-center"><div>Loading...</div></div></ProtectedRoute>);
   const canAccess = userData && hasAccess(userData.userType);
-
-  if (!canAccess) {
-    return (
-      <ProtectedRoute>
-        <div className="min-h-screen bg-gray-50 py-8 px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-              <p className="font-medium">Access Denied</p>
-              <p className="text-sm">You do not have permission to view this page.</p>
-            </div>
-            <button onClick={() => router.push(ROUTES.DASHBOARD)} className="mt-4 text-blue-600 hover:text-blue-800">← Back to Dashboard</button>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
+  if (!canAccess) return (<ProtectedRoute><div className="min-h-screen bg-gray-50 py-8 px-4"><div className="bg-red-50 border p-3 rounded text-red-700">Access Denied</div><button onClick={() => router.push(ROUTES.DASHBOARD)} className="mt-4 text-blue-600">← Back</button></div></ProtectedRoute>);
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center mb-6">
-            <button onClick={() => router.push(ROUTES.DASHBOARD)} className="mr-4 text-blue-600 hover:text-blue-800">
-              ← Back to Dashboard
-            </button>
-            <h1 className="text-3xl font-bold">Advertisement Booking</h1>
+            <button onClick={() => router.push(ROUTES.DASHBOARD)} className="mr-4 text-blue-600 hover:text-blue-800">← Back</button>
+            <h1 className="text-3xl font-bold">Ad Booking</h1>
           </div>
-
           <div className="bg-white p-6 rounded-lg shadow">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-
-              {/* Name - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`}
-                  placeholder="Enter name"
-                />
-                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-              </div>
-
-              {/* PAN Number - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.panNumber ? "border-red-500" : "border-gray-300"}`}
-                  placeholder="Enter PAN number"
-                  maxLength={10}
-                />
-                {errors.panNumber && <p className="mt-1 text-sm text-red-500">{errors.panNumber}</p>}
-              </div>
-
-              {/* Mobile Number - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number <span className="text-red-500">*</span></label>
-                <input
-                  type="tel"
-                  value={mobileNumber}
-                  onChange={(e) => setMobileNumber(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.mobileNumber ? "border-red-500" : "border-gray-300"}`}
-                  placeholder="Enter 10-digit mobile number"
-                  maxLength={10}
-                />
-                {errors.mobileNumber && <p className="mt-1 text-sm text-red-500">{errors.mobileNumber}</p>}
-              </div>
-
-              {/* Ad Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ad Type <span className="text-red-500">*</span></label>
-                <select
-                  value={adType}
-                  onChange={(e) => { setAdType(e.target.value); setErrors({ ...errors, adType: "" }); }}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.adType ? "border-red-500" : "border-gray-300"}`}
-                >
-                  <option value="">-- Select Ad Type --</option>
-                  {AD_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-                {errors.adType && <p className="mt-1 text-sm text-red-500">{errors.adType}</p>}
-              </div>
-
-              {/* Conditional fields based on Ad Type */}
-              {adType === "Banner" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Size <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.size ? "border-red-500" : "border-gray-300"}`}
-                    placeholder="e.g. 4ft x 6ft"
-                  />
-                  {errors.size && <p className="mt-1 text-sm text-red-500">{errors.size}</p>}
-                </div>
-              )}
-
-              {adType === "LED" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Video Length (seconds) <span className="text-red-500">*</span></label>
-                  <input
-                    type="text"
-                    value={videoLength}
-                    onChange={(e) => setVideoLength(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.videoLength ? "border-red-500" : "border-gray-300"}`}
-                    placeholder="e.g. 30 seconds"
-                  />
-                  {errors.videoLength && <p className="mt-1 text-sm text-red-500">{errors.videoLength}</p>}
-                </div>
-              )}
-
-              {/* Quantity */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="1"
-                />
-              </div>
-
-              {/* Total Amount - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount (₹) <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  value={totalAmount}
-                  onChange={(e) => setTotalAmount(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.totalAmount ? "border-red-500" : "border-gray-300"}`}
-                  placeholder="Enter total amount"
-                  step="0.01"
-                  min="0"
-                />
-                {errors.totalAmount && <p className="mt-1 text-sm text-red-500">{errors.totalAmount}</p>}
-              </div>
-
-              {/* Paid Amount - Mandatory */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹) <span className="text-red-500">*</span></label>
-                <input
-                  type="number"
-                  value={paidAmount}
-                  onChange={(e) => {
-                    setPaidAmount(e.target.value);
-                    setErrors({ ...errors, paidAmount: "" });
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`}
-                  placeholder="Enter paid amount"
-                  step="0.01"
-                  min="0"
-                />
-                {errors.paidAmount && <p className="mt-1 text-sm text-red-500">{errors.paidAmount}</p>}
-              </div>
-
-              {/* Pending Amount (calculated / read-only) */}
-              {(total > 0) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Pending Amount</label>
-                  <div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 ${pending > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}`}>
-                    ₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-              )}
-
-              {/* Payment Details - Only when paid > 0 */}
-              {showPaymentDetails && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
-                    <div className="flex space-x-6">
-                      {(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (
-                        <label key={mop} className="flex items-center">
-                          <input
-                            type="radio"
-                            name="modeOfPayment"
-                            value={mop}
-                            checked={modeOfPayment === mop}
-                            onChange={(e) => { setModeOfPayment(e.target.value as PaymentMode); setErrors({ ...errors, modeOfPayment: "" }); }}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-gray-700">{mop}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
-                  </div>
-
-                  {requiresReferenceNumber(modeOfPayment) && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={chequeNumber}
-                        onChange={(e) => setChequeNumber(e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`}
-                        placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`}
-                      />
-                      {errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Input By */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
-                <input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
-              </div>
-
-              {/* Submit Button */}
-              <div>
-                <button
-                  type="submit"
-                  className="w-full bg-teal-600 text-white py-3 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
-                >
-                  Submit Advertisement Booking
-                </button>
-              </div>
+              <div><label className="block text-sm font-medium">Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border rounded-md" /></div>
+              <div><label className="block text-sm font-medium">Name *</label><input type="text" value={name} onChange={e => setName(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.name ? "border-red-500" : "border-gray-300"}`} />{errors.name && <p className="text-sm text-red-500">{errors.name}</p>}</div>
+              <div><label className="block text-sm font-medium">PAN *</label><input type="text" value={panNumber} onChange={e => setPanNumber(e.target.value.toUpperCase())} className={`w-full px-3 py-2 border rounded-md ${errors.panNumber ? "border-red-500" : "border-gray-300"}`} maxLength={10} />{errors.panNumber && <p className="text-sm text-red-500">{errors.panNumber}</p>}</div>
+              <div><label className="block text-sm font-medium">Mobile *</label><input type="tel" value={mobileNumber} onChange={e => setMobileNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.mobileNumber ? "border-red-500" : "border-gray-300"}`} maxLength={10} />{errors.mobileNumber && <p className="text-sm text-red-500">{errors.mobileNumber}</p>}</div>
+              <div><label className="block text-sm font-medium">Ad Type *</label><select value={adType} onChange={e => { setAdType(e.target.value); setErrors({ ...errors, adType: "" }); }} className={`w-full px-3 py-2 border rounded-md ${errors.adType ? "border-red-500" : "border-gray-300"}`}><option value="">-- Select --</option>{AD_TYPES.map(t => (<option key={t.value} value={t.value}>{t.label}</option>))}</select>{errors.adType && <p className="text-sm text-red-500">{errors.adType}</p>}</div>
+              {adType === "Banner" && (<div><label className="block text-sm font-medium">Size *</label><input type="text" value={size} onChange={e => setSize(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.size ? "border-red-500" : "border-gray-300"}`} />{errors.size && <p className="text-sm text-red-500">{errors.size}</p>}</div>)}
+              {adType === "LED" && (<div><label className="block text-sm font-medium">Video Length (sec) *</label><input type="text" value={videoLength} onChange={e => setVideoLength(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.videoLength ? "border-red-500" : "border-gray-300"}`} />{errors.videoLength && <p className="text-sm text-red-500">{errors.videoLength}</p>}</div>)}
+              <div><label className="block text-sm font-medium">Quantity</label><input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full px-3 py-2 border rounded-md" min="1" /></div>
+              <div><label className="block text-sm font-medium">Total Amount *</label><input type="number" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.totalAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.totalAmount && <p className="text-sm text-red-500">{errors.totalAmount}</p>}</div>
+              <div><label className="block text-sm font-medium">Paid Amount *</label><input type="number" value={paidAmount} onChange={e => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className={`w-full px-3 py-2 border rounded-md ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.paidAmount && <p className="text-sm text-red-500">{errors.paidAmount}</p>}</div>
+              {(total > 0) && (<div><label className="block text-sm font-medium">Pending</label><div className={`w-full px-3 py-2 border rounded-md bg-gray-100 ${pending > 0 ? "text-red-600" : "text-green-600"}`}>₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>)}
+              {paid > 0 && (<><div><label className="block text-sm font-medium">Mode *</label><div className="flex gap-4">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map(m => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => setModeOfPayment(m)} className="h-4 w-4" /><span className="ml-1">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
+                {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} # *</label><input type="text" value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} />{errors.chequeNumber && <p className="text-sm text-red-500">{errors.chequeNumber}</p>}</div>)}
+              </>)}
+              <div><label className="block text-sm font-medium">Input By</label><input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" /></div>
+              <button type="submit" className="w-full bg-teal-600 text-white py-3 rounded-md hover:bg-teal-700 font-medium">Submit</button>
             </form>
           </div>
         </div>

@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, DB_PATHS, ROUTES, hasAccess, YEAR_KEY_REGEX, formatFinancialYear, getCurrentYearString } from "../../utils/constants";
+import { dbPath, DB_PATHS, ROUTES, hasAccess, YEAR_KEY_REGEX, formatFinancialYear } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface SectionState {
   expanded: boolean;
@@ -20,8 +21,7 @@ export default function FinancialYearViewPage() {
   const { user } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedYear, setSelectedYear] = useState(getCurrentYearString());
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const { selectedYear, setSelectedYear, availableYears, setAvailableYears } = useFinancialYear();
   const [yearsLoading, setYearsLoading] = useState(true);
   const router = useRouter();
 

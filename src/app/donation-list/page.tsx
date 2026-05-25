@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess, getCurrentYearString } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface DonationItem {
   key: string;
@@ -23,6 +24,7 @@ interface DonationItem {
 
 export default function DonationListPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [donations, setDonations] = useState<DonationItem[]>([]);
@@ -42,7 +44,7 @@ export default function DonationListPage() {
   const fetchDonations = async () => {
     try {
       setDonationsLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const snapshot = await get(ref(db, dbPath.donations(currentYear)));
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -91,7 +93,7 @@ export default function DonationListPage() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Donations for {getCurrentYearString()}</h2>
+                <h2 className="text-xl font-semibold">Donations for {selectedYear}</h2>
                 <div className="flex gap-2">
                   <button onClick={() => router.push(ROUTES.DONATION_TRACKER)} className="bg-rose-600 text-white px-4 py-2 rounded-md hover:bg-rose-700 text-sm font-medium">+ New Donation</button>
                   <button onClick={fetchDonations} className="text-blue-600 hover:text-blue-800 text-sm">Refresh</button>

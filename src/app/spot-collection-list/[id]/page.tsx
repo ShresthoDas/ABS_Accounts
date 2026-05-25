@@ -8,7 +8,8 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearString, getCurrentYearShort } from "../../../utils/constants";
+import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -35,6 +36,7 @@ const SPOT_COLLECTION_ALLOWED_TYPES = ["Accounts", "GB", "Front Office"];
 
 export default function SpotCollectionDetailPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,7 +68,7 @@ export default function SpotCollectionDetailPage() {
   const fetchDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const snapshot = await get(ref(db, `${dbPath.spotCollection(currentYear)}/${params.id}`));
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -95,7 +97,7 @@ export default function SpotCollectionDetailPage() {
     if (!record || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const recordRef = ref(db, `${dbPath.spotCollection(currentYear)}/${params.id}`);
       const oldData = { ...record };
 
@@ -145,7 +147,7 @@ export default function SpotCollectionDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const recordRef = ref(db, `${dbPath.spotCollection(currentYear)}/${params.id}`);
       const oldData = { ...record };
       const oldAmount = roundMoney(record.amount || 0);

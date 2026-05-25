@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearString, EXPENSE_CATEGORIES } from "../../utils/constants";
+import { dbPath, EXPENSE_CATEGORIES } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function ExpenseTrackerPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
@@ -96,7 +98,7 @@ export default function ExpenseTrackerPage() {
     if (validateForm()) {
       try {
         const expenseAmount = parseFloat(amount);
-        const currentYear = getCurrentYearString();
+        const currentYear = selectedYear;
         
         // Create a unique key for this expense record
         const newExpenseRef = push(ref(db, dbPath.expense(currentYear)));
@@ -125,12 +127,9 @@ export default function ExpenseTrackerPage() {
         const totalSnapshot = await get(totalExpenseRef);
         
         if (totalSnapshot.exists()) {
-          // Update existing total
-          await set(totalExpenseRef, totalSnapshot.val() + expenseAmount
-          );
+          await set(totalExpenseRef, totalSnapshot.val() + expenseAmount);
         } else {
-          // Create new total with first entry
-          await set(totalExpenseRef, expenseAmount );
+          await set(totalExpenseRef, expenseAmount);
         }
 
         // Log audit for expense creation
@@ -195,213 +194,86 @@ export default function ExpenseTrackerPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               {/* Bill Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bill Number
-                </label>
-                <input
-                  type="text"
-                  value={billNumber}
-                  onChange={(e) => setBillNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter bill number"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
+                <input type="text" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter bill number" />
               </div>
 
               {/* Category - Mandatory Dropdown */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value);
-                    setErrors({ ...errors, category: "" });
-                  }}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.category ? "border-red-500" : "border-gray-300"
-                  }`}
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
+                <select value={category} onChange={(e) => { setCategory(e.target.value); setErrors({ ...errors, category: "" }); }} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.category ? "border-red-500" : "border-gray-300"}`}>
                   {categoryOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
-                {errors.category && (
-                  <p className="mt-1 text-sm text-red-500">{errors.category}</p>
-                )}
+                {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
               </div>
 
               {/* Name - Mandatory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.name ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="Enter name"
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`} placeholder="Enter name" />
+                {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
 
               {/* PAN Number - Mandatory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  PAN Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.panNumber ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="Enter PAN number"
-                  maxLength={10}
-                />
-                {errors.panNumber && (
-                  <p className="mt-1 text-sm text-red-500">{errors.panNumber}</p>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">PAN Number <span className="text-red-500">*</span></label>
+                <input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.panNumber ? "border-red-500" : "border-gray-300"}`} placeholder="Enter PAN number" maxLength={10} />
+                {errors.panNumber && <p className="mt-1 text-sm text-red-500">{errors.panNumber}</p>}
               </div>
 
               {/* Amount - Mandatory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.amount ? "border-red-500" : "border-gray-300"
-                  }`}
-                  placeholder="Enter amount"
-                  step="0.01"
-                  min="0"
-                />
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-500">{errors.amount}</p>
-                )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label>
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.amount ? "border-red-500" : "border-gray-300"}`} placeholder="Enter amount" step="0.01" min="0" />
+                {errors.amount && <p className="mt-1 text-sm text-red-500">{errors.amount}</p>}
               </div>
 
               {/* Mode of Payment - Mandatory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mode of Payment <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                 <div className="flex space-x-6">
                   <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="Cash"
-                      checked={modeOfPayment === "Cash"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
+                    <input type="radio" name="modeOfPayment" value="Cash" checked={modeOfPayment === "Cash"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                     <span className="ml-2 text-gray-700">Cash</span>
                   </label>
                   <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="Cheque"
-                      checked={modeOfPayment === "Cheque"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
+                    <input type="radio" name="modeOfPayment" value="Cheque" checked={modeOfPayment === "Cheque"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                     <span className="ml-2 text-gray-700">Cheque</span>
                   </label>
                   <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="modeOfPayment"
-                      value="NEFT"
-                      checked={modeOfPayment === "NEFT"}
-                      onChange={(e) => {
-                        setModeOfPayment(e.target.value as ModeOfPayment);
-                        setErrors({ ...errors, modeOfPayment: "" });
-                      }}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
+                    <input type="radio" name="modeOfPayment" value="NEFT" checked={modeOfPayment === "NEFT"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                     <span className="ml-2 text-gray-700">NEFT</span>
                   </label>
                 </div>
-                {errors.modeOfPayment && (
-                  <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>
-                )}
+                {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
               </div>
 
               {/* Cheque Number - Conditionally visible and mandatory */}
               {showChequeField && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cheque/Reference Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={chequeNumber}
-                    onChange={(e) => setChequeNumber(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.chequeNumber ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`}
-                  />
-                  {errors.chequeNumber && (
-                    <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>
-                  )}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cheque/Reference Number <span className="text-red-500">*</span></label>
+                  <input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`} />
+                  {errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}
                 </div>
               )}
 
               {/* Input By */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Input By
-                </label>
-                <input
-                  type="text"
-                  value={inputBy}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
+                <input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600" />
               </div>
 
               {/* Submit Button */}
               <div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                >
-                  Submit Expense
-                </button>
+                <button type="submit" className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">Submit Expense</button>
               </div>
             </form>
           </div>

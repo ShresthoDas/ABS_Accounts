@@ -7,7 +7,8 @@ import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, getCurrentYearString, EXPENSE_CATEGORIES } from "../../../utils/constants";
+import { dbPath, EXPENSE_CATEGORIES } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 interface ExpenseItem {
   key: string;
@@ -28,6 +29,7 @@ type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function ExpenseDetailPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,7 +71,7 @@ export default function ExpenseDetailPage() {
   const fetchExpenseDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const expenseRef = ref(db, `${dbPath.expense(currentYear)}/${params.id}`);
       const snapshot = await get(expenseRef);
 
@@ -101,7 +103,7 @@ export default function ExpenseDetailPage() {
     if (!expense || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const expenseRef = ref(db, `${dbPath.expense(currentYear)}/${params.id}`);
       const oldData = { ...expense };
 
@@ -146,7 +148,7 @@ export default function ExpenseDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const expenseRef = ref(db, `${dbPath.expense(currentYear)}/${params.id}`);
       const newAmount = parseFloat(amount);
       const amountDifference = newAmount - expense.amount;

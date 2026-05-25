@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess, getCurrentYearString } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface StallItem {
   key: string;
@@ -25,6 +26,7 @@ interface StallItem {
 
 export default function StallListPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [stalls, setStalls] = useState<StallItem[]>([]);
@@ -48,7 +50,7 @@ export default function StallListPage() {
   const fetchStalls = async () => {
     try {
       setStallsLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const stallsRef = ref(db, dbPath.stalls(currentYear));
       const snapshot = await get(stallsRef);
 
@@ -115,7 +117,7 @@ export default function StallListPage() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Stalls for {getCurrentYearString()}</h2>
+                <h2 className="text-xl font-semibold">Stalls for {selectedYear}</h2>
                 <div className="flex gap-2">
                   <button onClick={() => router.push(ROUTES.STALL_TRACKER)} className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-sm font-medium">
                     + New Stall Booking

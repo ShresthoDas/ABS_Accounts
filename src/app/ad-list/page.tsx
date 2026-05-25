@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess, getCurrentYearString } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface AdItem {
   key: string;
@@ -26,6 +27,7 @@ interface AdItem {
 
 export default function AdListPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [ads, setAds] = useState<AdItem[]>([]);
@@ -49,7 +51,7 @@ export default function AdListPage() {
   const fetchAds = async () => {
     try {
       setAdsLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const adsRef = ref(db, dbPath.ads(currentYear));
       const snapshot = await get(adsRef);
 
@@ -116,7 +118,7 @@ export default function AdListPage() {
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Advertisements for {getCurrentYearString()}</h2>
+                <h2 className="text-xl font-semibold">Advertisements for {selectedYear}</h2>
                 <div className="flex gap-2">
                   <button onClick={() => router.push(ROUTES.AD_TRACKER)} className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 text-sm font-medium">
                     + New Ad Booking

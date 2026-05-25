@@ -8,7 +8,8 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, AD_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearString, getCurrentYearShort } from "../../../utils/constants";
+import { dbPath, ROUTES, hasAccess, AD_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
+import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 // Helper to round monetary values to 2 decimal places (avoids floating point issues like 30000 - 0 = 29999.9995)
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -40,6 +41,7 @@ type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 export default function AdDetailPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -84,7 +86,7 @@ export default function AdDetailPage() {
   const fetchAdDetail = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const adRef = ref(db, `${dbPath.ads(currentYear)}/${params.id}`);
       const snapshot = await get(adRef);
 
@@ -172,7 +174,7 @@ export default function AdDetailPage() {
     if (!ad || !userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const adRef = ref(db, `${dbPath.ads(currentYear)}/${params.id}`);
       const oldData = { ...ad };
 
@@ -228,7 +230,7 @@ export default function AdDetailPage() {
 
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const adRef = ref(db, `${dbPath.ads(currentYear)}/${params.id}`);
       const oldData = { ...ad };
       const oldPaidAmount = ad.paidAmount || 0;

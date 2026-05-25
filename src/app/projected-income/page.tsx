@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, set } from "firebase/database";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, getCurrentYearString, INCOME_CATEGORIES } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, INCOME_CATEGORIES } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface CategoryActual {
   projected: number;
@@ -16,6 +17,7 @@ interface CategoryActual {
 
 export default function ProjectedIncomePage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +46,7 @@ export default function ProjectedIncomePage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
 
       // Load projected amounts
       const projectedRef = ref(db, dbPath.projectedIncome(currentYear));
@@ -106,7 +108,7 @@ export default function ProjectedIncomePage() {
     if (!userData || !user) return;
     try {
       setSaving(true);
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       const projectedRef = ref(db, dbPath.projectedIncome(currentYear));
 
       // Build projected data object

@@ -6,7 +6,10 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess, getCurrentYearString } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
+import FinancialYearSelector from "../../components/FinancialYearSelector";
+import StartNewFYButton from "../../components/StartNewFYButton";
 
 // Feature group config
 interface FeatureGroup {
@@ -19,6 +22,7 @@ interface FeatureGroup {
 export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [userData, setUserData] = useState<any>(null);
+  const { selectedYear } = useFinancialYear();
   const [totalExpense, setTotalExpense] = useState<number>(0);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -47,7 +51,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchTotals = async () => {
-      const currentYear = getCurrentYearString();
+      const currentYear = selectedYear;
       
       const totalExpenseRef = ref(db, dbPath.totalExpense(currentYear));
       const expenseSnapshot = await get(totalExpenseRef);
@@ -69,7 +73,7 @@ export default function DashboardPage() {
     if (userData) {
       fetchTotals();
     }
-  }, [userData]);
+  }, [userData, selectedYear]);
 
   const canAccess = userData && hasAccess(userData.userType);
 
@@ -246,18 +250,28 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 py-6 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+          {/* Top Bar with Financial Year Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-            <button
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-sm"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              {loggingOut ? "Logging out..." : "Logout"}
-            </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Always show FY selector for authorized users */}
+              {userData && (userData.userType === "Front Office" || userData.userType === "GB" || userData.userType === "Accounts") && (
+                <FinancialYearSelector />
+              )}
+              {canAccess && userData.userType !== "Front Office" && (
+                <StartNewFYButton />
+              )}
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium text-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                {loggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
           </div>
           
           {userData ? (
@@ -350,11 +364,11 @@ export default function DashboardPage() {
                   <div className="p-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="border rounded-lg p-4 bg-green-50 hover:shadow-sm transition-shadow">
-                        <p className="text-sm text-gray-500 mb-1">Total Income ({getCurrentYearString()})</p>
+                        <p className="text-sm text-gray-500 mb-1">Total Income ({selectedYear})</p>
                         <p className="text-2xl font-bold text-green-600">₹ {totalIncome.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       <div className="border rounded-lg p-4 bg-red-50 hover:shadow-sm transition-shadow">
-                        <p className="text-sm text-gray-500 mb-1">Total Expense ({getCurrentYearString()})</p>
+                        <p className="text-sm text-gray-500 mb-1">Total Expense ({selectedYear})</p>
                         <p className="text-2xl font-bold text-red-600">₹ {totalExpense.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                     </div>
