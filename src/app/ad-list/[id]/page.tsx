@@ -62,6 +62,7 @@ export default function AdDetailPage() {
   const [quantity, setQuantity] = useState("1");
   const [totalAmount, setTotalAmount] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -121,7 +122,8 @@ export default function AdDetailPage() {
 
   const validateEditForm = () => {
     const newErrors: Record<string, string> = {};
-    const paid = roundMoney(parseFloat(paidAmount) || 0);
+    const paidTodayAmount = roundMoney(parseFloat(paidToday) || 0);
+    const newPaid = roundMoney((parseFloat(paidAmount) || 0) + paidTodayAmount);
 
     if (!name.trim()) {
       newErrors.name = "Name is mandatory";
@@ -154,15 +156,15 @@ export default function AdDetailPage() {
       newErrors.totalAmount = "Total amount must be greater than 0";
     }
 
-    if (paid > total) {
+    if (newPaid > total) {
       newErrors.paidAmount = "Paid amount cannot exceed total amount";
     }
 
-    if (paid > 0 && !modeOfPayment) {
+    if (paidTodayAmount > 0 && !modeOfPayment) {
       newErrors.modeOfPayment = "Please select a mode of payment";
     }
 
-    if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
+    if (paidTodayAmount > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque/Reference number is mandatory for " + modeOfPayment;
     }
 
@@ -224,7 +226,8 @@ export default function AdDetailPage() {
 
     if (!validateEditForm()) return;
 
-    const newPaid = roundMoney(parseFloat(paidAmount) || 0);
+    const paidTodayAmount = roundMoney(parseFloat(paidToday) || 0);
+    const newPaid = roundMoney((parseFloat(paidAmount) || 0) + paidTodayAmount);
     const newTotal = roundMoney(parseFloat(totalAmount) || 0);
     const newPending = roundMoney(newTotal - newPaid);
 
@@ -494,13 +497,18 @@ export default function AdDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹) <span className="text-red-500">*</span></label>
-                  <input type="number" value={paidAmount} onChange={(e) => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" required />
-                  {errors.paidAmount && <p className="mt-1 text-sm text-red-500">{errors.paidAmount}</p>}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label>
+                  <input type="number" value={paidAmount} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed" step="0.01" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Today (₹)</label>
+                  <input type="number" value={paidToday} onChange={(e) => { setPaidToday(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" placeholder="0.00" />
                 </div>
 
                 {(() => {
-                  const p = parseFloat(paidAmount) || 0;
+                  const oldPaid = parseFloat(paidAmount) || 0;
+                  const p = oldPaid + (parseFloat(paidToday) || 0);
                   const t = parseFloat(totalAmount) || 0;
                   const pend = t - p;
                   if (t > 0) {
@@ -515,7 +523,7 @@ export default function AdDetailPage() {
                   }
                 })()}
 
-                {(parseFloat(paidAmount) || 0) > 0 && (
+                {((parseFloat(paidAmount) || 0) > 0 || (parseFloat(paidToday) || 0) > 0) && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
@@ -549,7 +557,7 @@ export default function AdDetailPage() {
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (ad) { setDate(ad.date || ""); setName(ad.name || ""); setPanNumber(ad.panNumber || ""); setMobileNumber(ad.mobileNumber || ""); setAdType(ad.adType || ""); setSize(ad.size || ""); setVideoLength(ad.videoLength || ""); setQuantity(ad.quantity?.toString() || "1"); setTotalAmount(ad.totalAmount?.toString() || ""); setPaidAmount(ad.paidAmount?.toString() || ""); setModeOfPayment((ad.modeOfPayment as PaymentMode) || ""); setChequeNumber(ad.chequeNumber || ""); setInputBy(ad.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
+                  <button type="button" onClick={() => { setIsEditing(false); if (ad) { setDate(ad.date || ""); setName(ad.name || ""); setPanNumber(ad.panNumber || ""); setMobileNumber(ad.mobileNumber || ""); setAdType(ad.adType || ""); setSize(ad.size || ""); setVideoLength(ad.videoLength || ""); setQuantity(ad.quantity?.toString() || "1"); setTotalAmount(ad.totalAmount?.toString() || ""); setPaidAmount(ad.paidAmount?.toString() || ""); setPaidToday(""); setModeOfPayment((ad.modeOfPayment as PaymentMode) || ""); setChequeNumber(ad.chequeNumber || ""); setInputBy(ad.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
                     Cancel
                   </button>
                 </div>

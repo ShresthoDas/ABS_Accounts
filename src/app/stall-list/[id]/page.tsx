@@ -60,6 +60,7 @@ export default function StallDetailPage() {
   const [quantity, setQuantity] = useState("1");
   const [totalAmount, setTotalAmount] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -165,7 +166,8 @@ export default function StallDetailPage() {
     e.preventDefault();
     if (!stall || !userData || !user) return;
 
-    const newPaid = roundMoney(parseFloat(paidAmount) || 0);
+    const paidTodayAmount = roundMoney(parseFloat(paidToday) || 0);
+    const newPaid = roundMoney((parseFloat(paidAmount) || 0) + paidTodayAmount);
     const newTotal = roundMoney(parseFloat(totalAmount) || 0);
     const newPending = roundMoney(newTotal - newPaid);
 
@@ -179,8 +181,8 @@ export default function StallDetailPage() {
       return;
     }
 
-    if (newPaid > 0 && !modeOfPayment) {
-      alert("Please select a mode of payment when paid amount > 0.");
+    if (paidTodayAmount > 0 && !modeOfPayment) {
+      alert("Please select a mode of payment for the new payment.");
       return;
     }
 
@@ -427,12 +429,18 @@ export default function StallDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹) <span className="text-red-500">*</span></label>
-                  <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label>
+                  <input type="number" value={paidAmount} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed" step="0.01" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Today (₹)</label>
+                  <input type="number" value={paidToday} onChange={(e) => setPaidToday(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" placeholder="0.00" />
                 </div>
 
                 {(() => {
-                  const p = parseFloat(paidAmount) || 0;
+                  const oldPaid = parseFloat(paidAmount) || 0;
+                  const p = oldPaid + (parseFloat(paidToday) || 0);
                   const t = parseFloat(totalAmount) || 0;
                   const pend = t - p;
                   if (t > 0) {
@@ -447,7 +455,7 @@ export default function StallDetailPage() {
                   }
                 })()}
 
-                {(parseFloat(paidAmount) || 0) > 0 && (
+                {((parseFloat(paidAmount) || 0) > 0 || (parseFloat(paidToday) || 0) > 0) && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
@@ -479,7 +487,7 @@ export default function StallDetailPage() {
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
+                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setPaidToday(""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
                     Cancel
                   </button>
                 </div>

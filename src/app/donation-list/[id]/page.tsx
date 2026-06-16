@@ -31,6 +31,7 @@ export default function DonationDetailPage() {
   const [editPan, setEditPan] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editPaidAmount, setEditPaidAmount] = useState("");
+  const [editPaidToday, setEditPaidToday] = useState("");
   const [editModeOfPayment, setEditModeOfPayment] = useState<"Cash" | "Cheque" | "NEFT" | "">("");
   const [editChequeNumber, setEditChequeNumber] = useState("");
 
@@ -71,15 +72,123 @@ export default function DonationDetailPage() {
     try {
       const currentYear = selectedYear;
       const ref_ = ref(db, `${dbPath.donations(currentYear)}/${params.id}`);
+      const oldPaidAmount = donation.paidAmount || 0;
+      const paidTodayAmount = roundMoney(parseFloat(editPaidToday) || 0);
+      const newPaidAmount = roundMoney(oldPaidAmount + paidTodayAmount);
+
+      if (paidTodayAmount > 0 && !editModeOfPayment) {
+        alert("Please select a mode of payment for the new payment.");
+        setSaving(false);
+        return;
+      }
+
+      if (newPaidAmount > parseFloat(editAmount)) {
+        alert("Paid amount cannot exceed the total amount.");
+        setSaving(false);
+        return;
+      }
+
       await update(ref_, {
         eventCategory: editEventCategory,
         donorName: editDonorName,
         mobileNumber: editMobile,
         panNumber: editPan,
         amount: parseFloat(editAmount),
-        paidAmount: parseFloat(editPaidAmount) || 0,
-        pendingAmount: roundMoney(parseFloat(editAmount) - (parseFloat(editPaidAmount) || 0)),
+        paidAmount: newPaidAmount,
+        pendingAmount: roundMoney(parseFloat(editAmount) - newPaidAmount),
       });
+
+      // Handle income record changes based on paid amount difference
+      const paidDifference = newPaidAmount - oldPaidAmount;
+      if (paidDifference !== 0) {
+        let existingIncomeData = null;
+        if (donation.incomeKey) {
+          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
+          const incomeSnapshot = await get(incomeRef);
+          if (incomeSnapshot.exists()) {
+            existingIncomeData = incomeSnapshot.val();
+          }
+        }
+
+        if (newPaidAmount > 0) {
+          if (existingIncomeData) {
+            // Update existing income record
+            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
+            await update(incomeRef, {
+              amount: newPaidAmount,
+              modeOfPayment: editModeOfPayment || existingIncomeData.modeOfPayment,
+              chequeNumber: requiresReferenceNumber(editModeOfPayment || existingIncomeData.modeOfPayment) ? editChequeNumber : null,
+              name: editDonorName,
+              mobileNumber: editMobile,
+              panNumber: editPan,
+              date: donation.date,
+            });
+          } else {
+            // Create new income record
+            const receiptYear = getCurrentYearShort();
+            const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
+            const counterSnapshot = await get(receiptCounterRef);
+            let nextReceiptNum = 1;
+            if (counterSnapshot.exists()) {
+              nextReceiptNum = counterSnapshot.val() + 1;
+            }
+            const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+
+            const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
+            const incomeKey = newIncomeRef.key;
+
+            const mode = editModeOfPayment || donation.modeOfPayment || "Cash";
+
+            const incomeData = {
+              key: incomeKey,
+              date: donation.date,
+              receiptNumber: newReceiptNumber,
+              name: editDonorName,
+              mobileNumber: editMobile,
+              panNumber: editPan,
+              amount: newPaidAmount,
+              category: DEFAULTS.DONATION_INCOME_CATEGORY,
+              modeOfPayment: mode,
+              chequeNumber: requiresReferenceNumber(mode) ? editChequeNumber : null,
+              inputBy: donation.inputBy || userData?.name || "Unknown",
+              createdAt: new Date().toISOString(),
+              createdBy: user?.uid,
+            };
+
+            await set(newIncomeRef, incomeData);
+            await set(receiptCounterRef, nextReceiptNum);
+
+            // Link income key back to donation record
+            await update(ref_, {
+              incomeKey: incomeKey,
+              receiptNumber: newReceiptNumber,
+              modeOfPayment: mode,
+              chequeNumber: requiresReferenceNumber(mode) ? editChequeNumber : null,
+            });
+          }
+
+          // Update total income
+          const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
+          const totalSnapshot = await get(totalIncomeRef);
+          const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
+          await set(totalIncomeRef, Math.max(0, currentTotal + paidDifference));
+        }
+      } else if (paidTodayAmount > 0 && (editModeOfPayment !== donation.modeOfPayment || editChequeNumber !== donation.chequeNumber)) {
+        // Update payment mode/cheque even if amount unchanged
+        await update(ref_, {
+          modeOfPayment: editModeOfPayment,
+          chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
+        });
+
+        if (donation.incomeKey) {
+          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
+          await update(incomeRef, {
+            modeOfPayment: editModeOfPayment,
+            chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
+          });
+        }
+      }
+
       setIsEditing(false);
       fetchDonation();
       alert("Donation updated!");
@@ -122,10 +231,59 @@ export default function DonationDetailPage() {
               <div><label className="block text-sm font-medium">Mobile</label><input type="text" value={editMobile} onChange={e => setEditMobile(e.target.value)} className="w-full px-3 py-2 border rounded-md" /></div>
               <div><label className="block text-sm font-medium">PAN</label><input type="text" value={editPan} onChange={e => setEditPan(e.target.value.toUpperCase())} className="w-full px-3 py-2 border rounded-md" maxLength={10} /></div>
               <div><label className="block text-sm font-medium">Amount *</label><input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.amount ? "border-red-500" : "border-gray-300"}`} step="0.01" />{errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}</div>
-              <div><label className="block text-sm font-medium">Paid Amount</label><input type="number" value={editPaidAmount} onChange={e => setEditPaidAmount(e.target.value)} className="w-full px-3 py-2 border rounded-md" step="0.01" /></div>
+              <div>
+                <label className="block text-sm font-medium">Paid Amount</label>
+                <input type="number" value={editPaidAmount} disabled className="w-full px-3 py-2 border rounded-md bg-gray-100 text-gray-500 cursor-not-allowed" step="0.01" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium">Paid Today</label>
+                <input type="number" value={editPaidToday} onChange={e => setEditPaidToday(e.target.value)} className="w-full px-3 py-2 border rounded-md" step="0.01" min="0" placeholder="0.00" />
+              </div>
+
+              {(() => {
+                const oldPaid = parseFloat(editPaidAmount) || 0;
+                const newPaid = oldPaid + (parseFloat(editPaidToday) || 0);
+                const total = parseFloat(editAmount) || 0;
+                const pending = total - newPaid;
+                if (total > 0) {
+                  return (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pending Amount</label>
+                      <div className={`w-full px-3 py-2 border rounded-md bg-gray-50 ${pending > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}`}>
+                        ₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
+
+              {((parseFloat(editPaidAmount) || 0) > 0 || (parseFloat(editPaidToday) || 0) > 0) && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment</label>
+                    <div className="flex space-x-6">
+                      {(["Cash", "Cheque", "NEFT"] as const).map((mop) => (
+                        <label key={mop} className="flex items-center">
+                          <input type="radio" name="editModeOfPayment" value={mop} checked={editModeOfPayment === mop} onChange={(e) => setEditModeOfPayment(e.target.value as "Cash" | "Cheque" | "NEFT")} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                          <span className="ml-2 text-gray-700">{mop}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {requiresReferenceNumber(editModeOfPayment) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{editModeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number</label>
+                      <input type="text" value={editChequeNumber} onChange={(e) => setEditChequeNumber(e.target.value)} className="w-full px-3 py-2 border rounded-md" />
+                    </div>
+                  )}
+                </>
+              )}
+
               <div className="flex gap-3">
                 <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
-                <button onClick={() => setIsEditing(false)} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
+                <button onClick={() => { setIsEditing(false); setEditPaidToday(""); setEditModeOfPayment(""); setEditChequeNumber(""); }} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300">Cancel</button>
               </div>
             </div>
           ) : (
