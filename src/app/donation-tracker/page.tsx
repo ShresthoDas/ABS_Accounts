@@ -6,6 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
+import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
 import { dbPath, ROUTES, hasAccess, DONATION_EVENT_CATEGORIES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
@@ -25,6 +26,8 @@ export default function DonationTrackerPage() {
   const [donorName, setDonorName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [panNumber, setPanNumber] = useState("");
+  const [gotra, setGotra] = useState("");
+  const [familyDetails, setFamilyDetails] = useState("");
   const [amount, setAmount] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<"Cash" | "Cheque" | "NEFT" | "">("");
@@ -67,6 +70,7 @@ export default function DonationTrackerPage() {
       const donationData: Record<string, any> = {
         key: donationKey, date, eventCategory, donorName: donorName.trim(),
         mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(),
+        gotra: gotra.trim(), familyDetails: familyDetails.trim(),
         amount: totalAmt, paidAmount: paid, pendingAmount: roundMoney(totalAmt - paid),
         inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid,
       };
@@ -96,6 +100,18 @@ export default function DonationTrackerPage() {
         await set(rcRef, nextNum);
         donationData.incomeKey = incomeKey;
         donationData.receiptNumber = receiptNo;
+
+        // Generate receipt PDF
+        generateReceiptPDF({
+          date,
+          receiptNumber: receiptNo,
+          name: donorName.trim(),
+          panNumber: panNumber.trim().toUpperCase(),
+          amount: paid,
+          category: DEFAULTS.DONATION_INCOME_CATEGORY,
+          modeOfPayment: modeOfPayment || "Cash",
+          inputBy: inputBy || userData?.name || "",
+        });
       }
 
       await set(newDonationRef, donationData);
@@ -124,6 +140,8 @@ export default function DonationTrackerPage() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Donor Name <span className="text-red-500">*</span></label><input type="text" value={donorName} onChange={(e) => setDonorName(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.donorName ? "border-red-500" : "border-gray-300"}`} placeholder="Enter donor name" />{errors.donorName && <p className="text-sm text-red-500 mt-1">{errors.donorName}</p>}</div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label><input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" maxLength={10} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN</label><input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="w-full px-3 py-2 border border-gray-300 rounded-md" maxLength={10} /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Gotra</label><input type="text" value={gotra} onChange={(e) => setGotra(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Family Details</label><textarea value={familyDetails} onChange={(e) => setFamilyDetails(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" rows={2} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.amount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount}</p>}</div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label><input type="number" value={paidAmount} onChange={(e) => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className="w-full px-3 py-2 border border-gray-300 rounded-md" step="0.01" min="0" /></div>
               {showPayment && (<><div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as const).map((m) => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => { setModeOfPayment(m); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600" /><span className="ml-2 text-gray-700">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500 mt-1">{errors.modeOfPayment}</p>}</div>

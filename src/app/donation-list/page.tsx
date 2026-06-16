@@ -12,13 +12,15 @@ import { useFinancialYear } from "../../context/FinancialYearContext";
 interface DonationItem {
   key: string;
   date?: string;
-  name?: string;
+  donorName?: string;
   eventCategory?: string;
-  totalAmount?: number;
+  amount?: number;
   paidAmount?: number;
   pendingAmount?: number;
   mobileNumber?: string;
   panNumber?: string;
+  gotra?: string;
+  familyDetails?: string;
   [key: string]: any;
 }
 
@@ -113,6 +115,8 @@ export default function DonationListPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gotra</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Family Details</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
@@ -125,12 +129,14 @@ export default function DonationListPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           {d.date ? new Date(d.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{d.name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{d.donorName}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-rose-100 text-rose-800">{d.eventCategory || '-'}</span>
                         </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{d.gotra || '-'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{d.familyDetails || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{d.mobileNumber || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">₹ {(d.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">₹ {(d.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-green-600 font-medium">₹ {(d.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
                           {(d.pendingAmount || 0) > 0 ? (
@@ -144,8 +150,8 @@ export default function DonationListPage() {
                   </tbody>
                   <tfoot className="bg-gray-50">
                     <tr>
-                      <td colSpan={4} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Totals:</td>
-                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">₹ {donations.reduce((s, i) => s + (i.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Totals:</td>
+                      <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">₹ {donations.reduce((s, i) => s + (i.amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-green-600">₹ {donations.reduce((s, i) => s + (i.paidAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-red-600">₹ {donations.reduce((s, i) => s + (i.pendingAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     </tr>
