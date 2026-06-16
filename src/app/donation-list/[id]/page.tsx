@@ -6,6 +6,7 @@ import { getUserDoc } from "../../../utils/getUserDoc";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
 import { ref, get, update, remove, set, push } from "firebase/database";
+import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 import { dbPath, ROUTES, DONATION_EVENT_CATEGORIES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
@@ -88,6 +89,60 @@ export default function DonationDetailPage() {
         return;
       }
 
+      // Handle income record - create a NEW separate income record for this payment (preserves audit trail)
+      if (paidTodayAmount > 0) {
+        const receiptYear = getCurrentYearShort();
+        const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
+        const counterSnapshot = await get(receiptCounterRef);
+        let nextReceiptNum = 1;
+        if (counterSnapshot.exists()) {
+          nextReceiptNum = counterSnapshot.val() + 1;
+        }
+        const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+
+        const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
+        const incomeKey = newIncomeRef.key;
+
+        const todayStr = new Date().toISOString().split("T")[0];
+        const incomeData = {
+          key: incomeKey,
+          date: todayStr,
+          receiptNumber: newReceiptNumber,
+          name: editDonorName,
+          mobileNumber: editMobile,
+          panNumber: editPan,
+          amount: paidTodayAmount,
+          category: DEFAULTS.DONATION_INCOME_CATEGORY,
+          modeOfPayment: editModeOfPayment,
+          chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
+          inputBy: donation.inputBy || userData?.name || "Unknown",
+          createdAt: new Date().toISOString(),
+          createdBy: user?.uid,
+          donationLink: params.id,
+        };
+
+        await set(newIncomeRef, incomeData);
+        await set(receiptCounterRef, nextReceiptNum);
+
+        // Generate receipt PDF for the new income
+        generateReceiptPDF(incomeData);
+
+        // Link this new income key to the donation record
+        await update(ref_, {
+          incomeKey: incomeKey,
+          receiptNumber: newReceiptNumber,
+          modeOfPayment: editModeOfPayment,
+          chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
+        });
+
+        // Update total income by the paidToday amount
+        const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
+        const totalSnapshot = await get(totalIncomeRef);
+        const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
+        await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
+      }
+
+      // Update the donation record with new paid/pending amounts
       await update(ref_, {
         eventCategory: editEventCategory,
         donorName: editDonorName,
@@ -97,97 +152,6 @@ export default function DonationDetailPage() {
         paidAmount: newPaidAmount,
         pendingAmount: roundMoney(parseFloat(editAmount) - newPaidAmount),
       });
-
-      // Handle income record changes based on paid amount difference
-      const paidDifference = newPaidAmount - oldPaidAmount;
-      if (paidDifference !== 0) {
-        let existingIncomeData = null;
-        if (donation.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
-          const incomeSnapshot = await get(incomeRef);
-          if (incomeSnapshot.exists()) {
-            existingIncomeData = incomeSnapshot.val();
-          }
-        }
-
-        if (newPaidAmount > 0) {
-          if (existingIncomeData) {
-            // Update existing income record
-            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
-            await update(incomeRef, {
-              amount: newPaidAmount,
-              modeOfPayment: editModeOfPayment || existingIncomeData.modeOfPayment,
-              chequeNumber: requiresReferenceNumber(editModeOfPayment || existingIncomeData.modeOfPayment) ? editChequeNumber : null,
-              name: editDonorName,
-              mobileNumber: editMobile,
-              panNumber: editPan,
-              date: donation.date,
-            });
-          } else {
-            // Create new income record
-            const receiptYear = getCurrentYearShort();
-            const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
-            const counterSnapshot = await get(receiptCounterRef);
-            let nextReceiptNum = 1;
-            if (counterSnapshot.exists()) {
-              nextReceiptNum = counterSnapshot.val() + 1;
-            }
-            const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
-
-            const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
-            const incomeKey = newIncomeRef.key;
-
-            const mode = editModeOfPayment || donation.modeOfPayment || "Cash";
-
-            const incomeData = {
-              key: incomeKey,
-              date: donation.date,
-              receiptNumber: newReceiptNumber,
-              name: editDonorName,
-              mobileNumber: editMobile,
-              panNumber: editPan,
-              amount: newPaidAmount,
-              category: DEFAULTS.DONATION_INCOME_CATEGORY,
-              modeOfPayment: mode,
-              chequeNumber: requiresReferenceNumber(mode) ? editChequeNumber : null,
-              inputBy: donation.inputBy || userData?.name || "Unknown",
-              createdAt: new Date().toISOString(),
-              createdBy: user?.uid,
-            };
-
-            await set(newIncomeRef, incomeData);
-            await set(receiptCounterRef, nextReceiptNum);
-
-            // Link income key back to donation record
-            await update(ref_, {
-              incomeKey: incomeKey,
-              receiptNumber: newReceiptNumber,
-              modeOfPayment: mode,
-              chequeNumber: requiresReferenceNumber(mode) ? editChequeNumber : null,
-            });
-          }
-
-          // Update total income
-          const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-          const totalSnapshot = await get(totalIncomeRef);
-          const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
-          await set(totalIncomeRef, Math.max(0, currentTotal + paidDifference));
-        }
-      } else if (paidTodayAmount > 0 && (editModeOfPayment !== donation.modeOfPayment || editChequeNumber !== donation.chequeNumber)) {
-        // Update payment mode/cheque even if amount unchanged
-        await update(ref_, {
-          modeOfPayment: editModeOfPayment,
-          chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
-        });
-
-        if (donation.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
-          await update(incomeRef, {
-            modeOfPayment: editModeOfPayment,
-            chequeNumber: requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null,
-          });
-        }
-      }
 
       setIsEditing(false);
       fetchDonation();

@@ -210,106 +210,57 @@ export default function StallDetailPage() {
         updatedBy: user.uid,
       };
 
-      // Handle income record changes based on paid amount difference
-      if (paidDifference !== 0) {
-        // If there was an existing income record, get its data
-        let existingIncomeData = null;
-        if (stall.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-          const incomeSnapshot = await get(incomeRef);
-          if (incomeSnapshot.exists()) {
-            existingIncomeData = incomeSnapshot.val();
-          }
+      // Handle income record changes based on paid today amount
+      if (paidTodayAmount > 0) {
+        // Create a NEW separate income record for this payment (preserves audit trail)
+        const receiptYear = getCurrentYearShort();
+        const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
+        const counterSnapshot = await get(receiptCounterRef);
+        let nextReceiptNum = 1;
+        if (counterSnapshot.exists()) {
+          nextReceiptNum = counterSnapshot.val() + 1;
         }
+        const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
 
-        if (newPaid > 0) {
-          // Need to create or update income record
-          if (existingIncomeData) {
-            // Update existing income record
-            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-            await update(incomeRef, {
-              amount: newPaid,
-              modeOfPayment,
-              chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-              name: name.trim(),
-              mobileNumber: mobileNumber.trim(),
-              panNumber: panNumber.trim().toUpperCase(),
-              date,
-            });
-          } else {
-            // Create new income record
-            const receiptYear = getCurrentYearShort();
-            const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
-            const counterSnapshot = await get(receiptCounterRef);
-            let nextReceiptNum = 1;
-            if (counterSnapshot.exists()) {
-              nextReceiptNum = counterSnapshot.val() + 1;
-            }
-            const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+        const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
+        const incomeKey = newIncomeRef.key;
 
-            const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
-            const incomeKey = newIncomeRef.key;
+        const todayStr = new Date().toISOString().split("T")[0];
+        const incomeData = {
+          key: incomeKey,
+          date: todayStr,
+          receiptNumber: newReceiptNumber,
+          name: name.trim(),
+          mobileNumber: mobileNumber.trim(),
+          panNumber: panNumber.trim().toUpperCase(),
+          amount: paidTodayAmount,
+          category: DEFAULTS.STALL_INCOME_CATEGORY,
+          modeOfPayment,
+          chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
+          inputBy: inputBy || userData.name,
+          createdAt: new Date().toISOString(),
+          createdBy: user.uid,
+          stallLink: params.id,
+        };
 
-            const incomeData = {
-              key: incomeKey,
-              date,
-              receiptNumber: newReceiptNumber,
-              name: name.trim(),
-              mobileNumber: mobileNumber.trim(),
-              panNumber: panNumber.trim().toUpperCase(),
-              amount: newPaid,
-              category: DEFAULTS.STALL_INCOME_CATEGORY,
-              modeOfPayment,
-              chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-              inputBy: inputBy || userData.name,
-              createdAt: new Date().toISOString(),
-              createdBy: user.uid,
-              stallLink: params.id,
-            };
+        await set(newIncomeRef, incomeData);
+        await set(receiptCounterRef, nextReceiptNum);
 
-            await set(newIncomeRef, incomeData);
-            await set(receiptCounterRef, nextReceiptNum);
-            updatedData.incomeKey = incomeKey;
-            updatedData.receiptNumber = newReceiptNumber;
+        // Generate receipt PDF for the new income
+        generateReceiptPDF(incomeData);
 
-            // Generate receipt PDF for new income
-            generateReceiptPDF(incomeData);
-          }
-
-          // Update total income
-          const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-          const totalSnapshot = await get(totalIncomeRef);
-          const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
-          await set(totalIncomeRef, Math.max(0, currentTotal + paidDifference));
-        } else {
-          // Paid amount changed to 0 - remove income record if exists
-          if (stall.incomeKey) {
-            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-            await remove(incomeRef);
-
-            const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-            const totalSnapshot = await get(totalIncomeRef);
-            if (totalSnapshot.exists()) {
-              await set(totalIncomeRef, Math.max(0, totalSnapshot.val() - oldPaidAmount));
-            }
-          }
-          updatedData.incomeKey = null;
-          updatedData.receiptNumber = null;
-          updatedData.modeOfPayment = null;
-          updatedData.chequeNumber = null;
-        }
-      } else if (newPaid > 0 && (modeOfPayment !== stall.modeOfPayment || chequeNumber !== stall.chequeNumber)) {
-        // Update payment mode/cheque even if amount unchanged
+        // Link this new income key to the stall record (overwrites previous link,
+        // but the previous income record still exists independently)
+        updatedData.incomeKey = incomeKey;
+        updatedData.receiptNumber = newReceiptNumber;
         updatedData.modeOfPayment = modeOfPayment;
         updatedData.chequeNumber = requiresReferenceNumber(modeOfPayment) ? chequeNumber : null;
 
-        if (stall.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-          await update(incomeRef, {
-            modeOfPayment,
-            chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-          });
-        }
+        // Update total income by the paidToday amount
+        const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
+        const totalSnapshot = await get(totalIncomeRef);
+        const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
+        await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
       }
 
       await update(stallRef, updatedData);
