@@ -60,6 +60,7 @@ export default function StallDetailPage() {
   const [quantity, setQuantity] = useState("1");
   const [totalAmount, setTotalAmount] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -165,7 +166,8 @@ export default function StallDetailPage() {
     e.preventDefault();
     if (!stall || !userData || !user) return;
 
-    const newPaid = roundMoney(parseFloat(paidAmount) || 0);
+    const paidTodayAmount = roundMoney(parseFloat(paidToday) || 0);
+    const newPaid = roundMoney((parseFloat(paidAmount) || 0) + paidTodayAmount);
     const newTotal = roundMoney(parseFloat(totalAmount) || 0);
     const newPending = roundMoney(newTotal - newPaid);
 
@@ -179,8 +181,8 @@ export default function StallDetailPage() {
       return;
     }
 
-    if (newPaid > 0 && !modeOfPayment) {
-      alert("Please select a mode of payment when paid amount > 0.");
+    if (paidTodayAmount > 0 && !modeOfPayment) {
+      alert("Please select a mode of payment for the new payment.");
       return;
     }
 
@@ -208,106 +210,57 @@ export default function StallDetailPage() {
         updatedBy: user.uid,
       };
 
-      // Handle income record changes based on paid amount difference
-      if (paidDifference !== 0) {
-        // If there was an existing income record, get its data
-        let existingIncomeData = null;
-        if (stall.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-          const incomeSnapshot = await get(incomeRef);
-          if (incomeSnapshot.exists()) {
-            existingIncomeData = incomeSnapshot.val();
-          }
+      // Handle income record changes based on paid today amount
+      if (paidTodayAmount > 0) {
+        // Create a NEW separate income record for this payment (preserves audit trail)
+        const receiptYear = getCurrentYearShort();
+        const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
+        const counterSnapshot = await get(receiptCounterRef);
+        let nextReceiptNum = 1;
+        if (counterSnapshot.exists()) {
+          nextReceiptNum = counterSnapshot.val() + 1;
         }
+        const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
 
-        if (newPaid > 0) {
-          // Need to create or update income record
-          if (existingIncomeData) {
-            // Update existing income record
-            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-            await update(incomeRef, {
-              amount: newPaid,
-              modeOfPayment,
-              chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-              name: name.trim(),
-              mobileNumber: mobileNumber.trim(),
-              panNumber: panNumber.trim().toUpperCase(),
-              date,
-            });
-          } else {
-            // Create new income record
-            const receiptYear = getCurrentYearShort();
-            const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
-            const counterSnapshot = await get(receiptCounterRef);
-            let nextReceiptNum = 1;
-            if (counterSnapshot.exists()) {
-              nextReceiptNum = counterSnapshot.val() + 1;
-            }
-            const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+        const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
+        const incomeKey = newIncomeRef.key;
 
-            const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
-            const incomeKey = newIncomeRef.key;
+        const todayStr = new Date().toISOString().split("T")[0];
+        const incomeData = {
+          key: incomeKey,
+          date: todayStr,
+          receiptNumber: newReceiptNumber,
+          name: name.trim(),
+          mobileNumber: mobileNumber.trim(),
+          panNumber: panNumber.trim().toUpperCase(),
+          amount: paidTodayAmount,
+          category: DEFAULTS.STALL_INCOME_CATEGORY,
+          modeOfPayment,
+          chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
+          inputBy: inputBy || userData.name,
+          createdAt: new Date().toISOString(),
+          createdBy: user.uid,
+          stallLink: params.id,
+        };
 
-            const incomeData = {
-              key: incomeKey,
-              date,
-              receiptNumber: newReceiptNumber,
-              name: name.trim(),
-              mobileNumber: mobileNumber.trim(),
-              panNumber: panNumber.trim().toUpperCase(),
-              amount: newPaid,
-              category: DEFAULTS.STALL_INCOME_CATEGORY,
-              modeOfPayment,
-              chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-              inputBy: inputBy || userData.name,
-              createdAt: new Date().toISOString(),
-              createdBy: user.uid,
-              stallLink: params.id,
-            };
+        await set(newIncomeRef, incomeData);
+        await set(receiptCounterRef, nextReceiptNum);
 
-            await set(newIncomeRef, incomeData);
-            await set(receiptCounterRef, nextReceiptNum);
-            updatedData.incomeKey = incomeKey;
-            updatedData.receiptNumber = newReceiptNumber;
+        // Generate receipt PDF for the new income
+        generateReceiptPDF(incomeData);
 
-            // Generate receipt PDF for new income
-            generateReceiptPDF(incomeData);
-          }
-
-          // Update total income
-          const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-          const totalSnapshot = await get(totalIncomeRef);
-          const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
-          await set(totalIncomeRef, Math.max(0, currentTotal + paidDifference));
-        } else {
-          // Paid amount changed to 0 - remove income record if exists
-          if (stall.incomeKey) {
-            const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-            await remove(incomeRef);
-
-            const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
-            const totalSnapshot = await get(totalIncomeRef);
-            if (totalSnapshot.exists()) {
-              await set(totalIncomeRef, Math.max(0, totalSnapshot.val() - oldPaidAmount));
-            }
-          }
-          updatedData.incomeKey = null;
-          updatedData.receiptNumber = null;
-          updatedData.modeOfPayment = null;
-          updatedData.chequeNumber = null;
-        }
-      } else if (newPaid > 0 && (modeOfPayment !== stall.modeOfPayment || chequeNumber !== stall.chequeNumber)) {
-        // Update payment mode/cheque even if amount unchanged
+        // Link this new income key to the stall record (overwrites previous link,
+        // but the previous income record still exists independently)
+        updatedData.incomeKey = incomeKey;
+        updatedData.receiptNumber = newReceiptNumber;
         updatedData.modeOfPayment = modeOfPayment;
         updatedData.chequeNumber = requiresReferenceNumber(modeOfPayment) ? chequeNumber : null;
 
-        if (stall.incomeKey) {
-          const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
-          await update(incomeRef, {
-            modeOfPayment,
-            chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
-          });
-        }
+        // Update total income by the paidToday amount
+        const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
+        const totalSnapshot = await get(totalIncomeRef);
+        const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
+        await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
       }
 
       await update(stallRef, updatedData);
@@ -427,12 +380,18 @@ export default function StallDetailPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹) <span className="text-red-500">*</span></label>
-                  <input type="number" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label>
+                  <input type="number" value={paidAmount} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500 cursor-not-allowed" step="0.01" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Paid Today (₹)</label>
+                  <input type="number" value={paidToday} onChange={(e) => setPaidToday(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" placeholder="0.00" />
                 </div>
 
                 {(() => {
-                  const p = parseFloat(paidAmount) || 0;
+                  const oldPaid = parseFloat(paidAmount) || 0;
+                  const p = oldPaid + (parseFloat(paidToday) || 0);
                   const t = parseFloat(totalAmount) || 0;
                   const pend = t - p;
                   if (t > 0) {
@@ -447,7 +406,7 @@ export default function StallDetailPage() {
                   }
                 })()}
 
-                {(parseFloat(paidAmount) || 0) > 0 && (
+                {((parseFloat(paidAmount) || 0) > 0 || (parseFloat(paidToday) || 0) > 0) && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
@@ -479,7 +438,7 @@ export default function StallDetailPage() {
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
+                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setPaidToday(""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
                     Cancel
                   </button>
                 </div>
