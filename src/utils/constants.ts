@@ -100,6 +100,7 @@ export const ROUTES = {
   SIGN_UP: '/sign-up',
   UNAUTH_QUEUE: '/unauth-queue',
   USER_MANAGEMENT: '/user-management',
+  REPORTS: '/reports',
 } as const;
 
 // --------------- User Types (permissions) ---------------
