@@ -278,7 +278,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {/* Featured Actions for GB/Accounts */}
               {canAccess && userData.userType !== "Front Office" && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <button
                     onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-200 p-5 flex items-center justify-between group"
@@ -330,6 +330,27 @@ export default function DashboardPage() {
                       <div className="text-left">
                         <p className="text-lg font-semibold">Pending Approvals</p>
                         <p className="text-emerald-100 text-sm">Review pending signup/member requests</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => router.push(ROUTES.REPORTS)}
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg shadow-md hover:from-amber-600 hover:to-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all duration-200 p-5 flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/20 p-2.5 rounded-full">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-semibold">Reports</p>
+                        <p className="text-amber-100 text-sm">Download all Excel reports</p>
                       </div>
                     </div>
                     <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
@@ -421,6 +442,20 @@ export default function DashboardPage() {
                       <p className="text-base font-semibold text-gray-800">{userData.userType || 'N/A'}</p>
                     </div>
                   </div>
+                  {/* View Membership Button - available for all user types with a memberId */}
+                  {userData.memberId && (
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => router.push("/member-landing")}
+                        className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-sm transition-colors duration-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        View My Membership
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
