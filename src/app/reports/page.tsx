@@ -43,7 +43,6 @@ interface MemberItem {
   key: string;
   memberId: string;
   name: string;
-  fatherName: string;
   mobileNumber: string;
   panNumber: string;
   secondaryMemberName: string;
@@ -131,7 +130,6 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.income(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Date",
         "Receipt Number",
@@ -154,7 +152,6 @@ export default function ReportsPage() {
           ...data[key],
         }));
 
-        // Sort by date ascending
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
@@ -175,25 +172,15 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
       rows.push(["", "", "", "", "Total", totalAmount, "", "", "", ""]);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
-      // Set column widths
       ws["!cols"] = [
-        { wch: 12 }, // Date
-        { wch: 18 }, // Receipt Number
-        { wch: 25 }, // Name
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
-        { wch: 15 }, // Amount
-        { wch: 20 }, // Category
-        { wch: 18 }, // Mode of Payment
-        { wch: 22 }, // Cheque Number
-        { wch: 15 }, // Input By
+        { wch: 12 }, { wch: 18 }, { wch: 25 }, { wch: 15 }, { wch: 15 },
+        { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Income Report");
@@ -213,7 +200,6 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.expense(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Date",
         "Bill Number",
@@ -235,7 +221,6 @@ export default function ReportsPage() {
           ...data[key],
         }));
 
-        // Sort by date ascending
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
@@ -255,24 +240,15 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
       rows.push(["", "", "", "", "Total", totalAmount, "", "", ""]);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
-      // Set column widths
       ws["!cols"] = [
-        { wch: 12 }, // Date
-        { wch: 18 }, // Bill Number
-        { wch: 25 }, // Category
-        { wch: 25 }, // Name
-        { wch: 15 }, // PAN Number
-        { wch: 15 }, // Amount
-        { wch: 18 }, // Mode of Payment
-        { wch: 22 }, // Cheque Number
-        { wch: 15 }, // Input By
+        { wch: 12 }, { wch: 18 }, { wch: 25 }, { wch: 25 }, { wch: 15 },
+        { wch: 15 }, { wch: 18 }, { wch: 22 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Expense Report");
@@ -292,11 +268,9 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.members(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Member ID",
         "Name",
-        "Father's Name",
         "Mobile Number",
         "PAN Number",
         "Secondary Member Name",
@@ -321,7 +295,6 @@ export default function ReportsPage() {
           }))
           .filter((m) => m.paymentStatus === true);
 
-        // Sort by name ascending
         items.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         items.forEach((item) => {
@@ -330,7 +303,6 @@ export default function ReportsPage() {
           rows.push([
             item.memberId || "",
             item.name || "",
-            item.fatherName || "",
             item.mobileNumber || "",
             item.panNumber || "",
             item.secondaryMemberName || "",
@@ -346,29 +318,16 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
-      rows.push(["", "", "", "", "", "", "", "Total", totalAmount, "", "", "", "", ""]);
+      rows.push(["", "", "", "", "", "", "Total", totalAmount, "", "", "", "", ""]);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
-      // Set column widths
       ws["!cols"] = [
-        { wch: 15 }, // Member ID
-        { wch: 25 }, // Name
-        { wch: 25 }, // Father's Name
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
-        { wch: 25 }, // Secondary Member Name
-        { wch: 30 }, // Address
-        { wch: 25 }, // Email ID
-        { wch: 15 }, // Amount
-        { wch: 18 }, // Mode of Payment
-        { wch: 22 }, // Cheque Number
-        { wch: 18 }, // Receipt Number
-        { wch: 12 }, // Date
-        { wch: 15 }, // Input By
+        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 25 },
+        { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 18 }, { wch: 22 },
+        { wch: 18 }, { wch: 12 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Membership Paid Report");
@@ -388,11 +347,9 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.members(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Member ID",
         "Name",
-        "Father's Name",
         "Mobile Number",
         "PAN Number",
         "Secondary Member Name",
@@ -413,7 +370,6 @@ export default function ReportsPage() {
           }))
           .filter((m) => m.paymentStatus === false);
 
-        // Sort by name ascending
         items.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
         items.forEach((item) => {
@@ -422,7 +378,6 @@ export default function ReportsPage() {
           rows.push([
             item.memberId || "",
             item.name || "",
-            item.fatherName || "",
             item.mobileNumber || "",
             item.panNumber || "",
             item.secondaryMemberName || "",
@@ -434,25 +389,15 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
-      rows.push(["", "", "", "", "", "", "", "Total", totalPending, ""]);
+      rows.push(["", "", "", "", "", "", "Total", totalPending, ""]);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
-      // Set column widths
       ws["!cols"] = [
-        { wch: 15 }, // Member ID
-        { wch: 25 }, // Name
-        { wch: 25 }, // Father's Name
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
-        { wch: 25 }, // Secondary Member Name
-        { wch: 30 }, // Address
-        { wch: 25 }, // Email ID
-        { wch: 15 }, // Amount
-        { wch: 12 }, // Date
+        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 25 },
+        { wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 12 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Membership Unpaid Report");
@@ -472,7 +417,6 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.donations(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Date",
         "Donor Name",
@@ -497,7 +441,6 @@ export default function ReportsPage() {
           ...data[key],
         }));
 
-        // Sort by date ascending
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
@@ -522,7 +465,6 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
       rows.push(["", "", "", "", "", "", "Total", totalAmount, totalPaid, totalPending]);
 
@@ -530,16 +472,8 @@ export default function ReportsPage() {
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
       ws["!cols"] = [
-        { wch: 12 }, // Date
-        { wch: 25 }, // Donor Name
-        { wch: 25 }, // Event Category
-        { wch: 15 }, // Gotra
-        { wch: 25 }, // Family Details
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
-        { wch: 15 }, // Total Amount
-        { wch: 15 }, // Paid Amount
-        { wch: 15 }, // Pending Amount
+        { wch: 12 }, { wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 25 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Donation Report");
@@ -559,7 +493,6 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.stalls(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Date",
         "Stall Number",
@@ -584,7 +517,6 @@ export default function ReportsPage() {
           ...data[key],
         }));
 
-        // Sort by date ascending
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
@@ -609,7 +541,6 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
       rows.push(["", "", "", "", "Total", totalAmount, totalPaid, totalPending, "", ""]);
 
@@ -617,16 +548,8 @@ export default function ReportsPage() {
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
       ws["!cols"] = [
-        { wch: 12 }, // Date
-        { wch: 14 }, // Stall Number
-        { wch: 25 }, // Name
-        { wch: 12 }, // Stall Type
-        { wch: 10 }, // Quantity
-        { wch: 15 }, // Total Amount
-        { wch: 15 }, // Paid Amount
-        { wch: 15 }, // Pending Amount
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
+        { wch: 12 }, { wch: 14 }, { wch: 25 }, { wch: 12 }, { wch: 10 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Stall Report");
@@ -646,7 +569,6 @@ export default function ReportsPage() {
       const snapshot = await get(ref(db, dbPath.ads(selectedYear)));
       const rows: any[][] = [];
 
-      // Header row
       rows.push([
         "Date",
         "Name",
@@ -671,7 +593,6 @@ export default function ReportsPage() {
           ...data[key],
         }));
 
-        // Sort by date ascending
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
@@ -697,7 +618,6 @@ export default function ReportsPage() {
         });
       }
 
-      // Total row
       rows.push([]);
       rows.push(["", "", "", "", "Total", totalAmount, totalPaid, totalPending, "", ""]);
 
@@ -705,16 +625,8 @@ export default function ReportsPage() {
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
       ws["!cols"] = [
-        { wch: 12 }, // Date
-        { wch: 25 }, // Name
-        { wch: 12 }, // Ad Type
-        { wch: 18 }, // Size / Video Length
-        { wch: 10 }, // Quantity
-        { wch: 15 }, // Total Amount
-        { wch: 15 }, // Paid Amount
-        { wch: 15 }, // Pending Amount
-        { wch: 15 }, // Mobile Number
-        { wch: 15 }, // PAN Number
+        { wch: 12 }, { wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 10 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, "Advertisement Report");
@@ -859,7 +771,6 @@ export default function ReportsPage() {
             <h1 className="text-3xl font-bold">Reports</h1>
           </div>
 
-          {/* Financial Year Badge */}
           <div className="mb-6 bg-white rounded-lg shadow-md px-5 py-3.5 flex items-center gap-3">
             <div className="bg-indigo-100 p-2 rounded-lg">
               <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -872,7 +783,6 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* Report Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {reportCards.map((report) => (
               <div

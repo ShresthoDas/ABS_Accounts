@@ -13,7 +13,6 @@ interface MemberItem {
   key: string;
   memberId: string;
   name: string;
-  fatherName: string;
   mobileNumber: string;
   amount: number;
   paymentStatus: boolean;
@@ -133,7 +132,7 @@ export default function MemberListPage() {
                     {["memberId", "name", "mobileNumber", "amount", "paymentStatus"].map((field) => (
                       <th key={field} onClick={() => handleSort(field)} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100">
                         <div className="flex items-center gap-1">
-                          {field === "memberId" ? "Member ID" : field === "fatherName" ? "Father's Name" : field === "mobileNumber" ? "Mobile" : field === "paymentStatus" ? "Status" : field.charAt(0).toUpperCase() + field.slice(1)}
+                          {field === "memberId" ? "Member ID" : field === "mobileNumber" ? "Mobile" : field === "paymentStatus" ? "Status" : field.charAt(0).toUpperCase() + field.slice(1)}
                           {sortField === field && <span>{sortDirection === "asc" ? "▲" : "▼"}</span>}
                         </div>
                       </th>
