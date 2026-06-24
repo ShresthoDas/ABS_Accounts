@@ -28,6 +28,7 @@ export const DB_PATHS = {
   // Counters
   RECEIPT_COUNTERS: 'ReceiptCounters',
   MEMBER_COUNTER: 'MemberCounter',
+  USERS: 'Users',
 } as const;
 
 // Helper to build full DB paths

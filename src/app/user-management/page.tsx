@@ -6,7 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS } from "../../utils/constants";
+import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS,DB_PATHS } from "../../utils/constants";
 
 export default function UserManagementPage() {
   const { user } = useAuth();
@@ -104,7 +104,7 @@ export default function UserManagementPage() {
       const uid = signUpData.localId;
 
       // Step 2: Save user details to Realtime Database
-      const userRef = ref(db, `UAT/Accounts/Users/${uid}`);
+      const userRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.USERS}/${uid}`);
       // We'll do this via a server-side API call to avoid permissions issues
       const saveRes = await fetch("/api/save-user", {
         method: "POST",

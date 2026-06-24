@@ -1,5 +1,6 @@
 import { db } from "../firebase/config";
 import { ref, push, set } from "firebase/database";
+import {DB_PATHS} from "./constants";
 
 export interface AuditEntry {
   action: "CREATE" | "UPDATE" | "DELETE";
@@ -15,7 +16,7 @@ export interface AuditEntry {
 export const logAudit = async (entry: AuditEntry) => {
   try {
     const currentYear = new Date().getFullYear().toString();
-    const auditRef = push(ref(db, `UAT/Accounts/${currentYear}/AuditLog`));
+    const auditRef = push(ref(db, `${DB_PATHS.ROOT}/${currentYear}/AuditLog`));
     await set(auditRef, {
       ...entry,
       auditId: auditRef.key,

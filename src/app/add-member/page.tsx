@@ -8,7 +8,7 @@ import { db } from "../../firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../utils/constants";
+import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS ,DB_PATHS} from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
@@ -70,7 +70,8 @@ export default function AddMemberPage() {
       const currentYear = new Date().getFullYear().toString().slice(-2);
       
       // Reference to the receipt counter in Firebase
-      const memberCounterRef = ref(db, `UAT/Accounts/MemberCounter`);
+      
+      const memberCounterRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`);
       const snapshot = await get(memberCounterRef);
       
       let nextNumber = 1;
@@ -92,7 +93,7 @@ export default function AddMemberPage() {
   const generateReceiptNumber = async () => {
     try {
       const currentYear = new Date().getFullYear().toString().slice(-2);
-      const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${currentYear}`);
+      const receiptCounterRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.RECEIPT_COUNTERS}/${currentYear}`);
       const snapshot = await get(receiptCounterRef);
       
       let nextNumber = 1;
@@ -191,7 +192,7 @@ export default function AddMemberPage() {
           if (paymentStatus) {
             // Generate receipt number first
             const receiptYear = new Date().getFullYear().toString().slice(-2);
-            const receiptCounterRef = ref(db, `UAT/Accounts/ReceiptCounters/${receiptYear}`);
+            const receiptCounterRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.RECEIPT_COUNTERS}/${receiptYear}`);
             const receiptSnap = await get(receiptCounterRef);
             let nextReceiptNum = 1;
             if (receiptSnap.exists()) {

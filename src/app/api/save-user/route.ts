@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as admin from "firebase-admin";
+import {DB_PATHS} from "../../../utils/constants";
 
 // Initialize Firebase Admin SDK if not already initialized
 if (!admin.apps.length) {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const dbAdmin = admin.database();
-    const userRef = dbAdmin.ref(`UAT/Accounts/Users/${uid}`);
+    const userRef = dbAdmin.ref(`${DB_PATHS.ROOT}/${DB_PATHS.USERS}/${uid}`);
 
     await userRef.set({
       name,
