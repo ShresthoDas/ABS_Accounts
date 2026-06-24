@@ -5,7 +5,7 @@
 // --------------- Database Paths ---------------
 export const DB_PATHS = {
   // Base root
-  ROOT: 'UAT/Accounts',
+  ROOT: 'PROD/Accounts',
 
   // Section paths (use with year: `${DB_PATHS.ROOT}/${year}/Income`)
   INCOME: 'Income',
