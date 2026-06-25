@@ -32,6 +32,7 @@ export default function DonationTrackerPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<"Cash" | "Cheque" | "NEFT" | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -72,6 +73,7 @@ export default function DonationTrackerPage() {
         mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(),
         gotra: gotra.trim(), familyDetails: familyDetails.trim(),
         amount: totalAmt, paidAmount: paid, pendingAmount: roundMoney(totalAmt - paid),
+        referredBy: referredBy.trim() || null,
         inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid,
       };
 
@@ -110,6 +112,7 @@ export default function DonationTrackerPage() {
           amount: paid,
           category: DEFAULTS.DONATION_INCOME_CATEGORY,
           modeOfPayment: modeOfPayment || "Cash",
+          referredBy: referredBy.trim() || null,
           inputBy: inputBy || userData?.name || "",
         });
       }
@@ -147,6 +150,7 @@ export default function DonationTrackerPage() {
               {showPayment && (<><div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as const).map((m) => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => { setModeOfPayment(m); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600" /><span className="ml-2 text-gray-700">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500 mt-1">{errors.modeOfPayment}</p>}</div>
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} # <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} />{errors.chequeNumber && <p className="text-sm text-red-500 mt-1">{errors.chequeNumber}</p>}</div>)}
               </>)}
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label><input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter referrer name (optional)" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Input By</label><input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100" /></div>
               <button type="submit" className="w-full bg-rose-600 text-white py-3 rounded-md hover:bg-rose-700 font-medium">Submit Donation</button>
             </form>

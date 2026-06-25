@@ -25,6 +25,7 @@ interface MemberItem {
   modeOfPayment?: string;
   amount?: string;
   chequeNumber?: string | null;
+  referredBy?: string | null;
   inputBy?: string;
   createdBy?: string;
   createdAt?: string;
@@ -62,6 +63,7 @@ export default function MemberDetailPage() {
   const [amount, setAmount] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [editReferredBy, setEditReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
   useEffect(() => {
@@ -107,6 +109,7 @@ export default function MemberDetailPage() {
         setAmount(memberItem.amount?.toString() || "");
         setModeOfPayment(memberItem.modeOfPayment || "");
         setChequeNumber(memberItem.chequeNumber || "");
+        setEditReferredBy(memberItem.referredBy || "");
         setInputBy(memberItem.inputBy || "");
       } else {
         setMember(null);
@@ -479,6 +482,7 @@ export default function MemberDetailPage() {
         amount: amount || null,
         modeOfPayment: modeOfPayment || null,
         chequeNumber: chequeNumber || null,
+        referredBy: editReferredBy.trim() || null,
         inputBy: inputBy || userData.name,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
@@ -713,6 +717,17 @@ export default function MemberDetailPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                  <input
+                    type="text"
+                    value={editReferredBy}
+                    onChange={(e) => setEditReferredBy(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter referrer name (optional)"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
                   <input
                     type="text"
@@ -915,6 +930,12 @@ export default function MemberDetailPage() {
                         <p className="text-sm text-gray-500">Input By</p>
                         <p className="text-base font-medium text-gray-900">{member.inputBy || '-'}</p>
                       </div>
+                      {member.referredBy && (
+                        <div>
+                          <p className="text-sm text-gray-500">Referred By</p>
+                          <p className="text-base font-medium text-gray-900">{member.referredBy}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">Created At</p>
                         <p className="text-base font-medium text-gray-900">

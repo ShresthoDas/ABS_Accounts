@@ -22,6 +22,7 @@ interface IncomeItem {
   category: string;
   modeOfPayment?: string;
   chequeNumber?: string | null;
+  referredBy?: string | null;
   inputBy?: string;
   createdBy?: string;
   createdAt?: string;
@@ -56,6 +57,7 @@ export default function IncomeDetailPage() {
   const [category, setCategory] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
   const categoryOptions = INCOME_CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
@@ -99,6 +101,7 @@ export default function IncomeDetailPage() {
         setCategory(incomeItem.category || "");
         setModeOfPayment((incomeItem.modeOfPayment as ModeOfPayment) || "");
         setChequeNumber(incomeItem.chequeNumber || "");
+        setReferredBy(incomeItem.referredBy || "");
         setInputBy(incomeItem.inputBy || "");
       } else {
         setIncome(null);
@@ -183,6 +186,7 @@ export default function IncomeDetailPage() {
         category,
         modeOfPayment,
         chequeNumber: (modeOfPayment === "Cheque" || modeOfPayment === "NEFT") ? chequeNumber : null,
+        referredBy: referredBy.trim() || null,
         inputBy: inputBy || userData.name,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
@@ -235,6 +239,7 @@ export default function IncomeDetailPage() {
         category: income.category,
         modeOfPayment: income.modeOfPayment || 'Cash',
         chequeNumber: income.chequeNumber || null,
+        referredBy: income.referredBy || null,
         inputBy: income.inputBy || '',
         createdBy: income.createdBy,
         createdAt: income.createdAt,
@@ -449,6 +454,17 @@ export default function IncomeDetailPage() {
                 )}
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                  <input
+                    type="text"
+                    value={referredBy}
+                    onChange={(e) => setReferredBy(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter referrer name (optional)"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
                   <input
                     type="text"
@@ -635,6 +651,12 @@ export default function IncomeDetailPage() {
                         <p className="text-sm text-gray-500">Input By</p>
                         <p className="text-base font-medium text-gray-900">{income.inputBy || '-'}</p>
                       </div>
+                      {income.referredBy && (
+                        <div>
+                          <p className="text-sm text-gray-500">Referred By</p>
+                          <p className="text-base font-medium text-gray-900">{income.referredBy}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">Created At</p>
                         <p className="text-base font-medium text-gray-900">

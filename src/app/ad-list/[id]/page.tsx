@@ -65,6 +65,7 @@ export default function AdDetailPage() {
   const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
   // Validation errors
@@ -108,6 +109,7 @@ export default function AdDetailPage() {
         setPaidAmount(adItem.paidAmount?.toString() || "");
         setModeOfPayment((adItem.modeOfPayment as PaymentMode) || "");
         setChequeNumber(adItem.chequeNumber || "");
+        setReferredBy(adItem.referredBy || "");
         setInputBy(adItem.inputBy || "");
       } else {
         setAd(null);
@@ -250,6 +252,7 @@ export default function AdDetailPage() {
         paidAmount: newPaid,
         pendingAmount: newPending,
         inputBy: inputBy || userData.name,
+        referredBy: referredBy.trim() || null,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
       };
@@ -498,6 +501,11 @@ export default function AdDetailPage() {
                 )}
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                  <input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter referrer name (optional)" />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
                   <input type="text" value={inputBy} onChange={(e) => setInputBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
@@ -626,6 +634,12 @@ export default function AdDetailPage() {
                         <p className="text-sm text-gray-500">Input By</p>
                         <p className="text-base font-medium text-gray-900">{ad.inputBy || '-'}</p>
                       </div>
+                      {ad.referredBy && (
+                        <div>
+                          <p className="text-sm text-gray-500">Referred By</p>
+                          <p className="text-base font-medium text-gray-900">{ad.referredBy}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">Created At</p>
                         <p className="text-base font-medium text-gray-900">{ad.createdAt ? new Date(ad.createdAt).toLocaleString('en-IN') : '-'}</p>

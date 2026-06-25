@@ -32,6 +32,7 @@ export default function AdTrackerPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -71,7 +72,7 @@ export default function AdTrackerPage() {
       const pending = roundMoney(total - paid);
       const newAdRef = push(ref(db, dbPath.ads(currentYear)));
       const adKey = newAdRef.key;
-      const adData: Record<string, any> = { key: adKey, date, name: name.trim(), panNumber: panNumber.trim().toUpperCase(), mobileNumber: mobileNumber.trim(), adType, quantity: parseInt(quantity) || 1, totalAmount: total, paidAmount: paid, pendingAmount: pending, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid };
+      const adData: Record<string, any> = { key: adKey, date, name: name.trim(), panNumber: panNumber.trim().toUpperCase(), mobileNumber: mobileNumber.trim(), adType, quantity: parseInt(quantity) || 1, totalAmount: total, paidAmount: paid, pendingAmount: pending, referredBy: referredBy.trim() || null, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid };
       if (adType === "Banner") adData.size = size.trim();
       else if (adType === "LED") adData.videoLength = videoLength.trim();
       if (paid > 0) {
@@ -84,7 +85,7 @@ export default function AdTrackerPage() {
         const rn = `ABS/${receiptYear}/${n}`;
         const incRef = push(ref(db, dbPath.income(currentYear)));
         const ik = incRef.key;
-        await set(incRef, { key: ik, date, receiptNumber: rn, name: name.trim(), mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(), amount: paid, category: DEFAULTS.AD_INCOME_CATEGORY, modeOfPayment, chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, adLink: adKey });
+        await set(incRef, { key: ik, date, receiptNumber: rn, name: name.trim(), mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(), amount: paid, category: DEFAULTS.AD_INCOME_CATEGORY, modeOfPayment, chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null, referredBy: referredBy.trim() || null, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, adLink: adKey });
         const tiRef = ref(db, dbPath.totalIncome(currentYear));
         const tiSnap = await get(tiRef);
         await set(tiRef, tiSnap.exists() ? roundMoney(tiSnap.val() + paid) : paid);
@@ -130,6 +131,7 @@ export default function AdTrackerPage() {
               {paid > 0 && (<><div><label className="block text-sm font-medium">Mode *</label><div className="flex gap-4">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map(m => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => setModeOfPayment(m)} className="h-4 w-4" /><span className="ml-1">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} # *</label><input type="text" value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} />{errors.chequeNumber && <p className="text-sm text-red-500">{errors.chequeNumber}</p>}</div>)}
               </>)}
+              <div><label className="block text-sm font-medium">Referred By</label><input type="text" value={referredBy} onChange={e => setReferredBy(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="Enter referrer name (optional)" /></div>
               <div><label className="block text-sm font-medium">Input By</label><input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border rounded-md bg-gray-100" /></div>
               <button type="submit" className="w-full bg-teal-600 text-white py-3 rounded-md hover:bg-teal-700 font-medium">Submit</button>
             </form>

@@ -31,6 +31,7 @@ export default function IncomeTrackerPage() {
   const [category, setCategory] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
   // Validation errors
@@ -140,6 +141,7 @@ export default function IncomeTrackerPage() {
           category,
           modeOfPayment,
           chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+          referredBy: referredBy.trim() || null,
           inputBy,
           createdAt: new Date().toISOString(),
           createdBy: user?.uid,
@@ -198,6 +200,7 @@ export default function IncomeTrackerPage() {
         setCategory("");
         setModeOfPayment("");
         setChequeNumber("");
+        setReferredBy("");
         setErrors({});
         
         // Generate new receipt number
@@ -322,6 +325,11 @@ export default function IncomeTrackerPage() {
                   {errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}
                 </div>
               )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                <input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter referrer name (optional)" />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>

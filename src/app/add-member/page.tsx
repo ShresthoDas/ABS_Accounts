@@ -32,6 +32,7 @@ export default function AddMemberPage() {
   const [emailId, setEmailId] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(false);
   const [amount, setAmount] =useState<string>(DEFAULTS.MEMBER_AMOUNT);
@@ -161,6 +162,7 @@ export default function AddMemberPage() {
           address,
           emailId,
           paymentStatus,
+          referredBy: referredBy.trim() || null,
           inputBy,
           createdAt: new Date().toISOString(),
           createdBy: user?.uid,
@@ -565,6 +567,20 @@ export default function AddMemberPage() {
                   )}
                 </>
               )}
+
+              {/* Referred By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Referred By
+                </label>
+                <input
+                  type="text"
+                  value={referredBy}
+                  onChange={(e) => setReferredBy(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter referrer name (optional)"
+                />
+              </div>
 
               {/* Input By */}
               <div>

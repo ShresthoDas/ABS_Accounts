@@ -63,6 +63,7 @@ export default function StallDetailPage() {
   const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
   useEffect(() => {
@@ -102,6 +103,7 @@ export default function StallDetailPage() {
         setPaidAmount(stallItem.paidAmount?.toString() || "");
         setModeOfPayment((stallItem.modeOfPayment as PaymentMode) || "");
         setChequeNumber(stallItem.chequeNumber || "");
+        setReferredBy(stallItem.referredBy || "");
         setInputBy(stallItem.inputBy || "");
       } else {
         setStall(null);
@@ -206,6 +208,7 @@ export default function StallDetailPage() {
         paidAmount: newPaid,
         pendingAmount: newPending,
         inputBy: inputBy || userData.name,
+        referredBy: referredBy.trim() || null,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
       };
@@ -430,6 +433,11 @@ export default function StallDetailPage() {
                 )}
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
+                  <input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter referrer name (optional)" />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Input By</label>
                   <input type="text" value={inputBy} onChange={(e) => setInputBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
@@ -551,6 +559,12 @@ export default function StallDetailPage() {
                         <p className="text-sm text-gray-500">Input By</p>
                         <p className="text-base font-medium text-gray-900">{stall.inputBy || '-'}</p>
                       </div>
+                      {stall.referredBy && (
+                        <div>
+                          <p className="text-sm text-gray-500">Referred By</p>
+                          <p className="text-base font-medium text-gray-900">{stall.referredBy}</p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm text-gray-500">Created At</p>
                         <p className="text-base font-medium text-gray-900">{stall.createdAt ? new Date(stall.createdAt).toLocaleString('en-IN') : '-'}</p>
