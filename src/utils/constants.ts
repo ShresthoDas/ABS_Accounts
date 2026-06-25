@@ -3,9 +3,13 @@
 // ============================================================
 
 // --------------- Database Paths ---------------
+// ROOT is determined from env var `NEXT_PUBLIC_ROOT` when provided.
+// Defaults to 'PROD/Accounts' for production builds and 'UAT/Accounts' otherwise.
+const DEFAULT_ROOT = process.env.NEXT_PUBLIC_ROOT ?? (process.env.NODE_ENV === 'production' ? 'PROD/Accounts' : 'UAT/Accounts');
+
 export const DB_PATHS = {
   // Base root
-  ROOT: 'PROD/Accounts',
+  ROOT: DEFAULT_ROOT,
 
   // Section paths (use with year: `${DB_PATHS.ROOT}/${year}/Income`)
   INCOME: 'Income',
