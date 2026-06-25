@@ -4,7 +4,7 @@ import {DB_PATHS} from "./constants";
 
 export interface AuditEntry {
   action: "CREATE" | "UPDATE" | "DELETE";
-  entityType: "Income" | "Expense" | "Member" | "Stall" | "Donation" | "Ad" | "SpotCollection" | "ProjectedIncome" | "ProjectedExpense";
+  entityType: "Income" | "Expense" | "Member" | "Stall" | "Donation" | "Ad" | "SpotCollection" | "ProjectedIncome" | "ProjectedExpense" | "User";
   entityId: string;
   previousData: Record<string, any> | null;
   newData: Record<string, any> | null;

@@ -6,7 +6,16 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS,DB_PATHS } from "../../utils/constants";
+import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS, DB_PATHS } from "../../utils/constants";
+
+interface UserRecord {
+  key: string;
+  name?: string;
+  mobileNo?: string;
+  userType?: string;
+  email?: string;
+  createdAt?: string;
+}
 
 export default function UserManagementPage() {
   const { user } = useAuth();
@@ -28,6 +37,10 @@ export default function UserManagementPage() {
   const [resetError, setResetError] = useState("");
   const [resetting, setResetting] = useState(false);
 
+  // Users list
+  const [usersList, setUsersList] = useState<UserRecord[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
   useEffect(() => {
     if (user) {
       getUserDoc(user.uid)
@@ -35,11 +48,42 @@ export default function UserManagementPage() {
           setUserData(data);
           if (data && data.userType !== "GB" && data.userType !== "Accounts") {
             setCreateError("You do not have permission to access this page.");
+          } else {
+            fetchUsers();
           }
         })
         .finally(() => setLoading(false));
     }
   }, [user]);
+
+  const fetchUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const usersRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.USERS}`);
+      const snap = await get(usersRef);
+      if (snap.exists()) {
+        const data = snap.val();
+        const list: UserRecord[] = Object.keys(data).map(key => ({
+          key,
+          ...data[key],
+        }));
+        // Sort by name, then by createdAt descending
+        list.sort((a, b) => {
+          const nameA = (a.name || "").toLowerCase();
+          const nameB = (b.name || "").toLowerCase();
+          if (nameA !== nameB) return nameA.localeCompare(nameB);
+          return (b.createdAt || "").localeCompare(a.createdAt || "");
+        });
+        setUsersList(list);
+      } else {
+        setUsersList([]);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   const validateForm = (): boolean => {
     setCreateError("");
@@ -104,8 +148,6 @@ export default function UserManagementPage() {
       const uid = signUpData.localId;
 
       // Step 2: Save user details to Realtime Database
-      const userRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.USERS}/${uid}`);
-      // We'll do this via a server-side API call to avoid permissions issues
       const saveRes = await fetch("/api/save-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,6 +171,9 @@ export default function UserManagementPage() {
       setName("");
       setMobileNo("");
       setUserType("GB");
+
+      // Refresh users list
+      fetchUsers();
     } catch (err: any) {
       setCreateError("Failed to create user: " + (err.message || "Unknown error"));
     } finally {
@@ -162,6 +207,16 @@ export default function UserManagementPage() {
       setResetError("Failed to reset password: " + (err.message || "Unknown error"));
     } finally {
       setResetting(false);
+    }
+  };
+
+  const getUserTypeBadgeClass = (type: string | undefined) => {
+    switch (type) {
+      case "GB": return "bg-purple-100 text-purple-800";
+      case "Accounts": return "bg-blue-100 text-blue-800";
+      case "Front Office": return "bg-green-100 text-green-800";
+      case "Member": return "bg-gray-100 text-gray-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -199,7 +254,7 @@ export default function UserManagementPage() {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 py-6 px-4">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold text-gray-800">User Management</h1>
             <button
@@ -280,6 +335,75 @@ export default function UserManagementPage() {
                     {creating ? "Creating User..." : "Create User"}
                   </button>
                 </form>
+              </div>
+            </div>
+
+            {/* Users List Section */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="px-5 py-3.5 bg-indigo-50 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  All Users
+                  {usersList.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-gray-500">({usersList.length} total)</span>
+                  )}
+                </h2>
+                <button
+                  onClick={fetchUsers}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 transition flex items-center gap-1"
+                  disabled={usersLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${usersLoading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
+              <div className="p-5">
+                {usersLoading ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                    <p className="mt-2 text-gray-500 text-sm">Loading users...</p>
+                  </div>
+                ) : usersList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No users found.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Name</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Mobile</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Email</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">User Type</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-700">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {usersList.map((u) => (
+                          <tr
+                            key={u.key}
+                            onClick={() => router.push(`/user-management/${u.key}`)}
+                            className="border-b border-gray-100 hover:bg-indigo-50 cursor-pointer transition-colors"
+                          >
+                            <td className="py-3 px-4 font-medium text-gray-900">{u.name || "-"}</td>
+                            <td className="py-3 px-4 text-gray-600">{u.mobileNo || "-"}</td>
+                            <td className="py-3 px-4 text-gray-600">{u.email || "-"}</td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${getUserTypeBadgeClass(u.userType)}`}>
+                                {u.userType || "-"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 text-xs">
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
 
