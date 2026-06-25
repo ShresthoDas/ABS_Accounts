@@ -13,7 +13,7 @@ const errorMessages: Record<string, string> = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [mobileNo, setMobileNo] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,6 +23,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      const email = `${mobileNo}@abs.com`;
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/");
     } catch (err: any) {
@@ -41,15 +42,19 @@ export default function LoginPage() {
         <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
         {error && <div className="mb-4 text-red-600">{error}</div>}
         <div className="mb-4">
-          <label className="block mb-1 font-medium">Email</label>
+          <label className="block mb-1 font-medium">Mobile Number</label>
           <input
-            type="email"
+            type="tel"
             className="w-full border px-3 py-2 rounded"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
+            placeholder="10-digit mobile number"
+            value={mobileNo}
+            onChange={e => setMobileNo(e.target.value.replace(/\D/g, "").slice(0, 10))}
             required
             autoFocus
           />
+          <p className="text-xs text-gray-500 mt-1">
+            Enter your registered 10-digit mobile number
+          </p>
         </div>
         <div className="mb-6">
           <label className="block mb-1 font-medium">Password</label>

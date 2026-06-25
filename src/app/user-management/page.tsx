@@ -32,7 +32,7 @@ export default function UserManagementPage() {
   const [creating, setCreating] = useState(false);
 
   // Reset password form
-  const [resetEmail, setResetEmail] = useState("");
+  const [resetMobileNo, setResetMobileNo] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetError, setResetError] = useState("");
   const [resetting, setResetting] = useState(false);
@@ -188,10 +188,11 @@ export default function UserManagementPage() {
     setResetting(true);
 
     try {
+      const email = `${resetMobileNo}@abs.com`;
       const res = await fetch("/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail.trim() }),
+        body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
@@ -201,8 +202,8 @@ export default function UserManagementPage() {
         return;
       }
 
-      setResetMessage(data.message || `Password reset successfully to Test123 for ${resetEmail.trim()}`);
-      setResetEmail("");
+      setResetMessage(data.message || `Password reset successfully to Test123 for ${resetMobileNo}@abs.com`);
+      setResetMobileNo("");
     } catch (err: any) {
       setResetError("Failed to reset password: " + (err.message || "Unknown error"));
     } finally {
@@ -426,13 +427,13 @@ export default function UserManagementPage() {
                   )}
 
                   <div>
-                    <label className="block mb-1 font-medium text-gray-700">User Email</label>
+                    <label className="block mb-1 font-medium text-gray-700">User Mobile Number</label>
                     <input
-                      type="email"
+                      type="tel"
                       className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      placeholder="Enter user's email (e.g. 1234567890@abs.com)"
-                      value={resetEmail}
-                      onChange={e => setResetEmail(e.target.value)}
+                      placeholder="Enter 10-digit mobile number"
+                      value={resetMobileNo}
+                      onChange={e => setResetMobileNo(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       required
                     />
                     <p className="text-xs text-gray-500 mt-1">
