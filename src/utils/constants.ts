@@ -16,7 +16,7 @@ export const DB_PATHS = {
   EXPENSE: 'Expense',
   MEMBERS: 'Members',
   STALLS: 'Stalls',
-  DONATIONS: 'Donations',
+  DONATIONS: 'Donation',
   SPOT_COLLECTION: 'SpotCollection',
   ADS: 'Ads',
   UNAUTH_QUEUE: 'UnauthQueue',
