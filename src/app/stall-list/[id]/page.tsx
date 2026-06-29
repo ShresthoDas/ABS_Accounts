@@ -18,6 +18,7 @@ interface StallItem {
   key: string;
   date?: string;
   stallNumber?: number;
+  stallName?: string;
   name?: string;
   panNumber?: string;
   mobileNumber?: string;
@@ -63,6 +64,7 @@ export default function StallDetailPage() {
   const [paidToday, setPaidToday] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [stallName, setStallName] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
 
@@ -103,6 +105,7 @@ export default function StallDetailPage() {
         setPaidAmount(stallItem.paidAmount?.toString() || "");
         setModeOfPayment((stallItem.modeOfPayment as PaymentMode) || "");
         setChequeNumber(stallItem.chequeNumber || "");
+        setStallName(stallItem.stallName || "");
         setReferredBy(stallItem.referredBy || "");
         setInputBy(stallItem.inputBy || "");
       } else {
@@ -199,6 +202,7 @@ export default function StallDetailPage() {
       const updatedData: Record<string, any> = {
         date,
         stallNumber: parseInt(stallNumber) || 0,
+        stallName: stallName.trim() || null,
         name: name.trim(),
         panNumber: panNumber.trim().toUpperCase(),
         mobileNumber: mobileNumber.trim(),
@@ -240,6 +244,7 @@ export default function StallDetailPage() {
           category: DEFAULTS.STALL_INCOME_CATEGORY,
           modeOfPayment,
           chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
+          stallName: stallName.trim() || null,
           inputBy: inputBy || userData.name,
           createdAt: new Date().toISOString(),
           createdBy: user.uid,
@@ -433,6 +438,10 @@ export default function StallDetailPage() {
                 )}
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stall Name</label>
+                  <input type="text" value={stallName} onChange={(e) => setStallName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter stall name (optional)" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label>
                   <input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter referrer name (optional)" />
                 </div>
@@ -446,7 +455,7 @@ export default function StallDetailPage() {
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setPaidToday(""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
+                  <button type="button" onClick={() => { setIsEditing(false); if (stall) { setDate(stall.date || ""); setStallNumber(stall.stallNumber?.toString() || "0"); setStallName(stall.stallName || ""); setName(stall.name || ""); setPanNumber(stall.panNumber || ""); setMobileNumber(stall.mobileNumber || ""); setStallType(stall.stallType || ""); setQuantity(stall.quantity?.toString() || "1"); setTotalAmount(stall.totalAmount?.toString() || ""); setPaidAmount(stall.paidAmount?.toString() || ""); setPaidToday(""); setModeOfPayment((stall.modeOfPayment as PaymentMode) || ""); setChequeNumber(stall.chequeNumber || ""); setInputBy(stall.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">
                     Cancel
                   </button>
                 </div>
@@ -486,6 +495,10 @@ export default function StallDetailPage() {
                       <div>
                         <p className="text-sm text-gray-500">Stall Number</p>
                         <p className="text-base font-medium text-gray-900">{stall.stallNumber ?? '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Stall Name</p>
+                        <p className="text-base font-medium text-gray-900">{stall.stallName || '-'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Stall Type</p>

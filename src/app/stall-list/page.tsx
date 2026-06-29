@@ -13,6 +13,7 @@ interface StallItem {
   key: string;
   date?: string;
   stallNumber?: number;
+  stallName?: string;
   name?: string;
   stallType?: string;
   quantity?: number;
@@ -138,6 +139,7 @@ export default function StallListPage() {
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stall No.</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stall Name</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
@@ -157,6 +159,7 @@ export default function StallListPage() {
                           {stall.date ? new Date(stall.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{stall.stallNumber ?? '-'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{stall.stallName || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{stall.name}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                           <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${stall.stallType === 'Food' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
@@ -184,7 +187,7 @@ export default function StallListPage() {
                   </tbody>
                   <tfoot className="bg-gray-50">
                     <tr>
-                      <td colSpan={5} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Totals:</td>
+                      <td colSpan={6} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Totals:</td>
                       <td className="px-4 py-3 text-right text-sm font-bold text-gray-900">
                         ₹ {stalls.reduce((s, i) => s + (i.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>

@@ -15,6 +15,7 @@ interface IncomeData {
   createdBy?: string;
   createdAt?: string;
   referredBy?: string | null;
+  stallName?: string | null;
 }
 
 // Convert image to base64 for use in PDF
@@ -125,6 +126,10 @@ export const generateReceiptPDF = async (incomeData: IncomeData) => {
     ['Name', incomeData.name],
     ['PAN Number', incomeData.panNumber || '-'],
   ];
+
+  if (incomeData.stallName) {
+    donorTableRows.push(['Stall Name', incomeData.stallName]);
+  }
 
   if (incomeData.mobileNumber) {
     donorTableRows.push(['Mobile', incomeData.mobileNumber]);

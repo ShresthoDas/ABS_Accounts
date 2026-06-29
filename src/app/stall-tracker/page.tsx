@@ -33,6 +33,7 @@ export default function StallTrackerPage() {
   const [paidAmount, setPaidAmount] = useState("");
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
+  const [stallName, setStallName] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -89,6 +90,7 @@ export default function StallTrackerPage() {
           key: stallKey,
           date,
           stallNumber: parseInt(stallNumber) || 0,
+          stallName: stallName.trim() || null,
           name: name.trim(),
           panNumber: panNumber.trim().toUpperCase(),
           mobileNumber: mobileNumber.trim(),
@@ -129,6 +131,7 @@ export default function StallTrackerPage() {
             modeOfPayment,
             chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
             referredBy: referredBy.trim() || null,
+            stallName: stallName.trim() || null,
             inputBy,
             createdAt: new Date().toISOString(),
             createdBy: user?.uid,
@@ -197,6 +200,7 @@ export default function StallTrackerPage() {
                 <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => { setModeOfPayment(e.target.value as PaymentMode); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>{errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`} />{errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}</div>)}
               </>)}
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Stall Name</label><input type="text" value={stallName} onChange={(e) => setStallName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter stall name (optional)" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label><input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter referrer name (optional)" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Input By</label><input type="text" value={inputBy} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600" /></div>
               <div><button type="submit" className="w-full bg-teal-600 text-white py-3 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium">Submit Stall Booking</button></div>
