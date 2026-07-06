@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, EXPENSE_CATEGORIES } from "../../utils/constants";
+import { dbPath, EXPENSE_CATEGORIES, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -30,6 +32,7 @@ export default function ExpenseTrackerPage() {
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -39,6 +42,8 @@ export default function ExpenseTrackerPage() {
     { value: "", label: "-- Select Category --" },
     ...EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
   ];
+
+  const isCashWithdrawal = category === "Cash Withdrawal";
 
   useEffect(() => {
     if (user) {
@@ -60,6 +65,13 @@ export default function ExpenseTrackerPage() {
     const formattedDate = today.toISOString().split("T")[0];
     setDate(formattedDate);
   }, []);
+
+  // When Cash Withdrawal is selected, force mode to Cheque
+  useEffect(() => {
+    if (isCashWithdrawal) {
+      setModeOfPayment("Cheque");
+    }
+  }, [isCashWithdrawal]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -84,8 +96,17 @@ export default function ExpenseTrackerPage() {
       newErrors.modeOfPayment = "Please select a mode of payment";
     }
 
+    // For Cash Withdrawal, only Cheque is allowed
+    if (isCashWithdrawal && modeOfPayment !== "Cheque") {
+      newErrors.modeOfPayment = "Cash Withdrawal must use Cheque mode";
+    }
+
     if ((modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
+    }
+
+    if (modeOfPayment === "Cash" && !cashPersonName.trim()) {
+      newErrors.cashPersonName = "Cash Paid By is mandatory for Cash payments";
     }
 
     setErrors(newErrors);
@@ -99,53 +120,98 @@ export default function ExpenseTrackerPage() {
       try {
         const expenseAmount = parseFloat(amount);
         const currentYear = selectedYear;
-        
-        // Create a unique key for this expense record
-        const newExpenseRef = push(ref(db, dbPath.expense(currentYear)));
-        const expenseKey = newExpenseRef.key;
 
-        const expenseData = {
-          key: expenseKey,
-          date,
-          billNumber,
-          category,
-          name,
-          panNumber,
-          amount: expenseAmount,
-          modeOfPayment,
-          chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
-          inputBy,
-          createdAt: new Date().toISOString(),
-          createdBy: user?.uid,
-        };
+        if (isCashWithdrawal) {
+          // Cash Withdrawal: NOT an actual expense, just cash movement from bank to person
+          // Generate a unique key for audit trail only (no expense record created)
+          const withdrawalKey = push(ref(db, dbPath.cashTransactions(currentYear))).key;
 
-        // Save expense record to database
-        await set(newExpenseRef, expenseData);
+          // Create CashIn entry in cash till for the person named
+          await recordCashTransaction(
+            {
+              date,
+              amount: expenseAmount,
+              transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+              cashPersonName: name.trim(),
+              sourceEntity: "Cash Withdrawal",
+              sourceEntityKey: withdrawalKey as string,
+              sourceReference: billNumber || "N/A",
+              inputBy,
+              createdBy: user?.uid,
+              createdAt: new Date().toISOString(),
+            },
+            currentYear
+          );
 
-        // Update total expense
-        const totalExpenseRef = ref(db, dbPath.totalExpense(currentYear));
-        const totalSnapshot = await get(totalExpenseRef);
-        
-        if (totalSnapshot.exists()) {
-          await set(totalExpenseRef, totalSnapshot.val() + expenseAmount);
+          console.log("Cash Withdrawal recorded for:", name.trim(), "Amount:", expenseAmount);
+          alert("Cash Withdrawal recorded successfully! Cash credited to " + name.trim());
         } else {
-          await set(totalExpenseRef, expenseAmount);
+          // Normal expense flow
+          const newExpenseRef = push(ref(db, dbPath.expense(currentYear)));
+          const expenseKey = newExpenseRef.key;
+
+          const expenseData = {
+            key: expenseKey,
+            date,
+            billNumber,
+            category,
+            name,
+            panNumber,
+            amount: expenseAmount,
+            modeOfPayment,
+            chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+            inputBy,
+            createdAt: new Date().toISOString(),
+            createdBy: user?.uid,
+          };
+
+          // Save expense record to database
+          await set(newExpenseRef, expenseData);
+
+          // Update total expense
+          const totalExpenseRef = ref(db, dbPath.totalExpense(currentYear));
+          const totalSnapshot = await get(totalExpenseRef);
+          
+          if (totalSnapshot.exists()) {
+            await set(totalExpenseRef, totalSnapshot.val() + expenseAmount);
+          } else {
+            await set(totalExpenseRef, expenseAmount);
+          }
+
+          // Record cash transaction if payment mode is Cash
+          if (modeOfPayment === "Cash" && cashPersonName.trim()) {
+            await recordCashTransaction(
+              {
+                date,
+                amount: expenseAmount,
+                transactionType: CASH_TRANSACTION_TYPES.CASH_OUT,
+                cashPersonName: cashPersonName.trim(),
+                sourceEntity: "Expense",
+                sourceEntityKey: expenseKey as string,
+                sourceReference: billNumber || "N/A",
+                inputBy,
+                createdBy: user?.uid,
+                createdAt: new Date().toISOString(),
+              },
+              currentYear
+            );
+          }
+
+          // Log audit for expense creation
+          await logAudit({
+            action: "CREATE",
+            entityType: "Expense",
+            entityId: expenseKey as string,
+            previousData: null,
+            newData: expenseData,
+            changedBy: userData?.name || user?.email || "Unknown",
+            changedByUid: user?.uid || "",
+            changedAt: new Date().toISOString(),
+          });
+
+          console.log("Expense Data:", expenseData);
+          alert("Expense recorded successfully!");
         }
-
-        // Log audit for expense creation
-        await logAudit({
-          action: "CREATE",
-          entityType: "Expense",
-          entityId: expenseKey as string,
-          previousData: null,
-          newData: expenseData,
-          changedBy: userData?.name || user?.email || "Unknown",
-          changedByUid: user?.uid || "",
-          changedAt: new Date().toISOString(),
-        });
-
-        console.log("Expense Data:", expenseData);
-        alert("Expense recorded successfully!");
 
         // Reset form after submission
         setBillNumber("");
@@ -155,11 +221,12 @@ export default function ExpenseTrackerPage() {
         setAmount("");
         setModeOfPayment("");
         setChequeNumber("");
+        setCashPersonName("");
         setErrors({});
         
       } catch (error) {
-        console.error("Error saving expense:", error);
-        alert("Error saving expense. Please try again.");
+        console.error("Error saving:", error);
+        alert("Error saving. Please try again.");
       }
     }
   };
@@ -201,7 +268,7 @@ export default function ExpenseTrackerPage() {
               {/* Bill Number */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label>
-                <input type="text" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter bill number" />
+                <input type="text" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter bill/cheque number" />
               </div>
 
               {/* Category - Mandatory Dropdown */}
@@ -217,7 +284,10 @@ export default function ExpenseTrackerPage() {
 
               {/* Name - Mandatory */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name <span className="text-red-500">*</span>
+                  {isCashWithdrawal && <span className="text-blue-500 text-xs ml-1">(Person receiving cash)</span>}
+                </label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`} placeholder="Enter name" />
                 {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
@@ -241,20 +311,46 @@ export default function ExpenseTrackerPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                 <div className="flex space-x-6">
                   <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="Cash" checked={modeOfPayment === "Cash"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className="ml-2 text-gray-700">Cash</span>
+                    <input type="radio" name="modeOfPayment" value="Cash" checked={modeOfPayment === "Cash"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>Cash</span>
                   </label>
                   <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="Cheque" checked={modeOfPayment === "Cheque"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className="ml-2 text-gray-700">Cheque</span>
+                    <input type="radio" name="modeOfPayment" value="Cheque" checked={modeOfPayment === "Cheque"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>Cheque</span>
                   </label>
                   <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="NEFT" checked={modeOfPayment === "NEFT"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className="ml-2 text-gray-700">NEFT</span>
+                    <input type="radio" name="modeOfPayment" value="NEFT" checked={modeOfPayment === "NEFT"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>NEFT</span>
                   </label>
                 </div>
                 {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
+                {isCashWithdrawal && (
+                  <p className="mt-1 text-xs text-blue-600">Cash Withdrawal uses Cheque mode only</p>
+                )}
               </div>
+
+              {/* Cash Person Field - only for non-Cash Withdrawal */}
+              {modeOfPayment === "Cash" && !isCashWithdrawal && (
+                <CashPersonField
+                  modeOfPayment={modeOfPayment}
+                  transactionType="CashOut"
+                  cashPersonName={cashPersonName}
+                  setCashPersonName={setCashPersonName}
+                  error={errors.cashPersonName}
+                  setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                />
+              )}
+
+              {/* Cash Withdrawal Info */}
+              {isCashWithdrawal && (
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                  <p className="text-sm text-amber-800">
+                    <span className="font-medium">Cash Withdrawal:</span> This is a cash movement from bank account. 
+                    The amount will be credited to <strong>{name || "the person named"}</strong>'s cash till. 
+                    No expense entry will be created.
+                  </p>
+                </div>
+              )}
 
               {/* Cheque Number - Conditionally visible and mandatory */}
               {showChequeField && (
@@ -273,7 +369,9 @@ export default function ExpenseTrackerPage() {
 
               {/* Submit Button */}
               <div>
-                <button type="submit" className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">Submit Expense</button>
+                <button type="submit" className={`w-full py-3 px-4 rounded-md focus:outline-none focus:ring-2 font-medium ${isCashWithdrawal ? 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'} text-white`}>
+                  {isCashWithdrawal ? "Record Cash Withdrawal" : "Submit Expense"}
+                </button>
               </div>
             </form>
           </div>

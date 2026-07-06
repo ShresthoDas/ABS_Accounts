@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearShort, INCOME_CATEGORIES } from "../../utils/constants";
+import { dbPath, getCurrentYearShort, INCOME_CATEGORIES, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -33,6 +35,7 @@ export default function IncomeTrackerPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -114,6 +117,10 @@ export default function IncomeTrackerPage() {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
     }
 
+    if (modeOfPayment === "Cash" && !cashPersonName.trim()) {
+      newErrors.cashPersonName = "Cash Received By is mandatory for Cash payments";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -160,6 +167,25 @@ export default function IncomeTrackerPage() {
           await set(totalIncomeRef, incomeAmount);
         }
 
+        // Record cash transaction if payment mode is Cash
+        if (modeOfPayment === "Cash" && cashPersonName.trim()) {
+          await recordCashTransaction(
+            {
+              date,
+              amount: incomeAmount,
+              transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+              cashPersonName: cashPersonName.trim(),
+              sourceEntity: "Income",
+              sourceEntityKey: incomeKey as string,
+              sourceReference: receiptNumber,
+              inputBy,
+              createdBy: user?.uid,
+              createdAt: new Date().toISOString(),
+            },
+            currentYear
+          );
+        }
+
         // Log audit for income creation
         await logAudit({
           action: "CREATE",
@@ -201,6 +227,7 @@ export default function IncomeTrackerPage() {
         setModeOfPayment("");
         setChequeNumber("");
         setReferredBy("");
+        setCashPersonName("");
         setErrors({});
         
         // Generate new receipt number
@@ -317,6 +344,17 @@ export default function IncomeTrackerPage() {
                 </div>
                 {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
               </div>
+
+              {modeOfPayment === "Cash" && (
+                <CashPersonField
+                  modeOfPayment={modeOfPayment}
+                  transactionType="CashIn"
+                  cashPersonName={cashPersonName}
+                  setCashPersonName={setCashPersonName}
+                  error={errors.cashPersonName}
+                  setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                />
+              )}
 
               {showChequeField && (
                 <div>

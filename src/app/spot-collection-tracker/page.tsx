@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -33,6 +35,7 @@ export default function SpotCollectionTrackerPage() {
   const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -66,6 +69,10 @@ export default function SpotCollectionTrackerPage() {
     if (!modeOfPayment) newErrors.modeOfPayment = "Please select a mode of payment";
     if (requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque/Reference number is mandatory for " + modeOfPayment;
+    }
+
+    if (modeOfPayment === "Cash" && !cashPersonName.trim()) {
+      newErrors.cashPersonName = "Cash Received By is mandatory for Cash payments";
     }
 
     setErrors(newErrors);
@@ -144,6 +151,25 @@ export default function SpotCollectionTrackerPage() {
           createdBy: user?.uid,
           spotCollectionLink: spotKey,
         };
+
+        // Record cash transaction if payment mode is Cash
+        if (modeOfPayment === "Cash" && cashPersonName.trim()) {
+          await recordCashTransaction(
+            {
+              date,
+              amount: amt,
+              transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+              cashPersonName: cashPersonName.trim(),
+              sourceEntity: "SpotCollection",
+              sourceEntityKey: spotKey as string,
+              sourceReference: newReceiptNumber,
+              inputBy,
+              createdBy: user?.uid,
+              createdAt: new Date().toISOString(),
+            },
+            currentYear
+          );
+        }
 
         await set(newIncomeRef, incomeData);
 
@@ -262,6 +288,17 @@ export default function SpotCollectionTrackerPage() {
                 </div>
                 {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
               </div>
+
+              {modeOfPayment === "Cash" && (
+                <CashPersonField
+                  modeOfPayment={modeOfPayment}
+                  transactionType="CashIn"
+                  cashPersonName={cashPersonName}
+                  setCashPersonName={setCashPersonName}
+                  error={errors.cashPersonName}
+                  setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                />
+              )}
 
               {requiresReferenceNumber(modeOfPayment) && (
                 <div>

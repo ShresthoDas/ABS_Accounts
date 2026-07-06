@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, get, set, update, push } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS ,DB_PATHS} from "../../utils/constants";
+import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS ,DB_PATHS, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -37,6 +39,7 @@ export default function AddMemberPage() {
   const [paymentStatus, setPaymentStatus] = useState(false);
   const [amount, setAmount] =useState<string>(DEFAULTS.MEMBER_AMOUNT);
   const [receiptNumber, setReceiptNumber] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -140,6 +143,10 @@ export default function AddMemberPage() {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
     }
 
+    if (paymentStatus && modeOfPayment === "Cash" && !cashPersonName.trim()) {
+      newErrors.cashPersonName = "Cash Received By is mandatory for Cash payments";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -201,6 +208,25 @@ export default function AddMemberPage() {
               nextReceiptNum = receiptSnap.val() + 1;
             }
             const newReceiptNumber = `ABS/${receiptYear}/${nextReceiptNum}`;
+
+            // Record cash transaction if payment mode is Cash
+            if (modeOfPayment === "Cash" && cashPersonName.trim()) {
+              await recordCashTransaction(
+                {
+                  date,
+                  amount: incomeAmount,
+                  transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+                  cashPersonName: cashPersonName.trim(),
+                  sourceEntity: "Member",
+                  sourceEntityKey: newMemberKey as string,
+                  sourceReference: newReceiptNumber,
+                  inputBy,
+                  createdBy: user?.uid,
+                  createdAt: new Date().toISOString(),
+                },
+                currentYear
+              );
+            }
 
             // Create income record
             const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
@@ -544,6 +570,17 @@ export default function AddMemberPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+
+                  {modeOfPayment === "Cash" && (
+                    <CashPersonField
+                      modeOfPayment={modeOfPayment}
+                      transactionType="CashIn"
+                      cashPersonName={cashPersonName}
+                      setCashPersonName={setCashPersonName}
+                      error={errors.cashPersonName}
+                      setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                    />
+                  )}
 
                   {/* Cheque Number - Conditionally visible and mandatory */}
                   {showChequeField && (

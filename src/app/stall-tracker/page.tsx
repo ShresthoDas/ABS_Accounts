@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, PAYMENT_MODES, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, PAYMENT_MODES, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -36,6 +38,7 @@ export default function StallTrackerPage() {
   const [stallName, setStallName] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export default function StallTrackerPage() {
     if (paid > total) newErrors.paidAmount = "Paid amount cannot exceed total amount";
     if (paid > 0 && !modeOfPayment) newErrors.modeOfPayment = "Please select a mode of payment";
     if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) newErrors.chequeNumber = "Cheque/Reference number is mandatory for " + modeOfPayment;
+    if (paid > 0 && modeOfPayment === "Cash" && !cashPersonName.trim()) newErrors.cashPersonName = "Cash Received By is mandatory for Cash payments";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -138,6 +142,25 @@ export default function StallTrackerPage() {
             stallLink: stallKey,
           };
 
+          // Record cash transaction if payment mode is Cash
+          if (modeOfPayment === "Cash" && cashPersonName.trim()) {
+            await recordCashTransaction(
+              {
+                date,
+                amount: paid,
+                transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+                cashPersonName: cashPersonName.trim(),
+                sourceEntity: "Stall",
+                sourceEntityKey: stallKey as string,
+                sourceReference: newReceiptNumber,
+                inputBy,
+                createdBy: user?.uid,
+                createdAt: new Date().toISOString(),
+              },
+              currentYear
+            );
+          }
+
           await set(newIncomeRef, incomeData);
 
           const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
@@ -198,6 +221,16 @@ export default function StallTrackerPage() {
               {(total > 0) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">Pending Amount</label><div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 ${pending > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}`}>₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>)}
               {showPaymentDetails && (<>
                 <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => { setModeOfPayment(e.target.value as PaymentMode); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>{errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
+                {modeOfPayment === "Cash" && (
+                  <CashPersonField
+                    modeOfPayment={modeOfPayment}
+                    transactionType="CashIn"
+                    cashPersonName={cashPersonName}
+                    setCashPersonName={setCashPersonName}
+                    error={errors.cashPersonName}
+                    setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                  />
+                )}
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} placeholder={`Enter ${modeOfPayment === "Cheque" ? "cheque" : "reference"} number`} />{errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}</div>)}
               </>)}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Stall Name</label><input type="text" value={stallName} onChange={(e) => setStallName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter stall name (optional)" /></div>

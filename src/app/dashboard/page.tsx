@@ -278,7 +278,7 @@ export default function DashboardPage() {
             <div className="space-y-6">
               {/* Featured Actions for GB/Accounts */}
               {canAccess && userData.userType !== "Front Office" && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <button
                     onClick={() => router.push(ROUTES.FINANCIAL_YEAR_VIEW)}
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-lg shadow-md hover:from-teal-600 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all duration-200 p-5 flex items-center justify-between group"
@@ -351,6 +351,27 @@ export default function DashboardPage() {
                       <div className="text-left">
                         <p className="text-lg font-semibold">Reports</p>
                         <p className="text-amber-100 text-sm">Download all Excel reports</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => router.push(ROUTES.CASH_REPORT)}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg shadow-md hover:from-emerald-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all duration-200 p-5 flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white/20 p-2.5 rounded-full">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-lg font-semibold">Cash Report</p>
+                        <p className="text-emerald-100 text-sm">View cash management & till balance</p>
                       </div>
                     </div>
                     <div className="bg-white/20 p-2 rounded-full group-hover:bg-white/30 transition-colors">
