@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, DONATION_EVENT_CATEGORIES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, DONATION_EVENT_CATEGORIES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -34,6 +36,7 @@ export default function DonationTrackerPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const categoryOptions = [{ value: "", label: "-- Select Event Category --" }, ...DONATION_EVENT_CATEGORIES.map((c: any) => ({ value: c.value, label: c.label }))];
@@ -54,6 +57,7 @@ export default function DonationTrackerPage() {
     const paid = roundMoney(parseFloat(paidAmount) || 0);
     if (paid > 0 && !modeOfPayment) ne.modeOfPayment = "Select mode of payment";
     if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) ne.chequeNumber = "Required for " + modeOfPayment;
+    if (paid > 0 && modeOfPayment === "Cash" && !cashPersonName.trim()) ne.cashPersonName = "Cash Received By is mandatory";
     setErrors(ne); return Object.keys(ne).length === 0;
   };
 
@@ -95,6 +99,25 @@ export default function DonationTrackerPage() {
           chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
           inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, donationLink: donationKey,
         };
+        // Record cash transaction if payment mode is Cash
+        if (paid > 0 && modeOfPayment === "Cash" && cashPersonName.trim()) {
+          await recordCashTransaction(
+            {
+              date,
+              amount: paid,
+              transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+              cashPersonName: cashPersonName.trim(),
+              sourceEntity: "Donation",
+              sourceEntityKey: donationKey as string,
+              sourceReference: receiptNo,
+              inputBy,
+              createdBy: user?.uid,
+              createdAt: new Date().toISOString(),
+            },
+            currentYear
+          );
+        }
+
         await set(incomeRef, incomeData);
         const tiRef = ref(db, dbPath.totalIncome(currentYear));
         const tiSnap = await get(tiRef);
@@ -148,6 +171,16 @@ export default function DonationTrackerPage() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.amount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount}</p>}</div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label><input type="number" value={paidAmount} onChange={(e) => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className="w-full px-3 py-2 border border-gray-300 rounded-md" step="0.01" min="0" /></div>
               {showPayment && (<><div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as const).map((m) => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => { setModeOfPayment(m); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600" /><span className="ml-2 text-gray-700">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500 mt-1">{errors.modeOfPayment}</p>}</div>
+                {modeOfPayment === "Cash" && (
+                  <CashPersonField
+                    modeOfPayment={modeOfPayment}
+                    transactionType="CashIn"
+                    cashPersonName={cashPersonName}
+                    setCashPersonName={setCashPersonName}
+                    error={errors.cashPersonName}
+                    setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                  />
+                )}
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} # <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} />{errors.chequeNumber && <p className="text-sm text-red-500 mt-1">{errors.chequeNumber}</p>}</div>)}
               </>)}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Referred By</label><input type="text" value={referredBy} onChange={(e) => setReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter referrer name (optional)" /></div>

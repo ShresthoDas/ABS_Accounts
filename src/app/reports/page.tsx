@@ -23,6 +23,7 @@ interface IncomeItem {
   chequeNumber: string;
   inputBy: string;
   createdAt: string;
+  cashPersonName?: string;
 }
 
 interface ExpenseItem {
@@ -37,6 +38,7 @@ interface ExpenseItem {
   chequeNumber: string;
   inputBy: string;
   createdAt: string;
+  cashPersonName?: string;
 }
 
 interface MemberItem {
@@ -123,7 +125,7 @@ export default function ReportsPage() {
     return `${year} - ${parseInt(year) + 1}`;
   };
 
-  // ==================== Income Report ====================
+  // ==================== Income Report (Non-Cash) ====================
   const generateIncomeReport = async () => {
     setGenerating("income");
     try {
@@ -155,6 +157,8 @@ export default function ReportsPage() {
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
+          // Exclude cash transactions
+          if (item.modeOfPayment === "Cash") return;
           const amt = item.amount || 0;
           totalAmount += amt;
           rows.push([
@@ -183,7 +187,7 @@ export default function ReportsPage() {
         { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 15 },
       ];
 
-      XLSX.utils.book_append_sheet(wb, ws, "Income Report");
+      XLSX.utils.book_append_sheet(wb, ws, "Income Report (Non-Cash)");
       XLSX.writeFile(wb, `Income_Report_${selectedYear}.xlsx`);
     } catch (error) {
       console.error("Error generating income report:", error);
@@ -193,7 +197,7 @@ export default function ReportsPage() {
     }
   };
 
-  // ==================== Expense Report ====================
+  // ==================== Expense Report (Non-Cash) ====================
   const generateExpenseReport = async () => {
     setGenerating("expense");
     try {
@@ -224,6 +228,8 @@ export default function ReportsPage() {
         items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
         items.forEach((item) => {
+          // Exclude cash transactions
+          if (item.modeOfPayment === "Cash") return;
           const amt = item.amount || 0;
           totalAmount += amt;
           rows.push([
@@ -251,11 +257,113 @@ export default function ReportsPage() {
         { wch: 15 }, { wch: 18 }, { wch: 22 }, { wch: 15 },
       ];
 
-      XLSX.utils.book_append_sheet(wb, ws, "Expense Report");
+      XLSX.utils.book_append_sheet(wb, ws, "Expense Report (Non-Cash)");
       XLSX.writeFile(wb, `Expense_Report_${selectedYear}.xlsx`);
     } catch (error) {
       console.error("Error generating expense report:", error);
       alert("Error generating expense report. Please try again.");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  // ==================== Cash Transactions Report ====================
+  const generateCashReport = async () => {
+    setGenerating("cash");
+    try {
+      const incomeSnapshot = await get(ref(db, dbPath.income(selectedYear)));
+      const expenseSnapshot = await get(ref(db, dbPath.expense(selectedYear)));
+      const rows: any[][] = [];
+
+      rows.push([
+        "Date",
+        "Type",
+        "Name",
+        "Amount (₹)",
+        "Category",
+        "Reference Number",
+        "Cash Person",
+        "Input By",
+      ]);
+
+      let totalCashIn = 0;
+      let totalCashOut = 0;
+
+      // Process cash income records
+      if (incomeSnapshot.exists()) {
+        const data = incomeSnapshot.val();
+        const items: IncomeItem[] = Object.keys(data).map((key) => ({
+          key,
+          ...data[key],
+        }));
+
+        items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+        items.forEach((item) => {
+          if (item.modeOfPayment !== "Cash") return;
+          const amt = item.amount || 0;
+          totalCashIn += amt;
+          rows.push([
+            item.date || "",
+            "Cash Income",
+            item.name || "",
+            amt,
+            item.category || "",
+            item.receiptNumber || "",
+            item.cashPersonName || "",
+            item.inputBy || "",
+          ]);
+        });
+      }
+
+      // Process cash expense records
+      if (expenseSnapshot.exists()) {
+        const data = expenseSnapshot.val();
+        const items: ExpenseItem[] = Object.keys(data).map((key) => ({
+          key,
+          ...data[key],
+        }));
+
+        items.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+        items.forEach((item) => {
+          if (item.modeOfPayment !== "Cash") return;
+          const amt = item.amount || 0;
+          totalCashOut += amt;
+          rows.push([
+            item.date || "",
+            "Cash Expense",
+            item.name || "",
+            amt,
+            item.category || "",
+            item.billNumber || "",
+            item.cashPersonName || "",
+            item.inputBy || "",
+          ]);
+        });
+      }
+
+      // Sort all rows by date
+      rows.sort((a, b) => (a[0] || "").localeCompare(b[0] || ""));
+
+      rows.push([]);
+      rows.push(["", "", "Total Cash In", totalCashIn, "", "", "", ""]);
+      rows.push(["", "", "Total Cash Out", totalCashOut, "", "", "", ""]);
+      rows.push(["", "", "Net Cash", totalCashIn - totalCashOut, "", "", "", ""]);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      ws["!cols"] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 15 },
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 15 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "Cash Transactions Report");
+      XLSX.writeFile(wb, `Cash_Transactions_Report_${selectedYear}.xlsx`);
+    } catch (error) {
+      console.error("Error generating cash report:", error);
+      alert("Error generating cash report. Please try again.");
     } finally {
       setGenerating(null);
     }
@@ -653,7 +761,7 @@ export default function ReportsPage() {
     {
       id: "income",
       title: "Income Report",
-      description: "Generate Excel report of all income records for the selected financial year.",
+      description: "Generate Excel report of all non-cash income records for the selected financial year.",
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -668,7 +776,7 @@ export default function ReportsPage() {
     {
       id: "expense",
       title: "Expense Report",
-      description: "Generate Excel report of all expense records for the selected financial year.",
+      description: "Generate Excel report of all non-cash expense records for the selected financial year.",
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -679,6 +787,21 @@ export default function ReportsPage() {
       borderColor: "border-red-200",
       btnColor: "bg-red-600 hover:bg-red-700 focus:ring-red-500",
       action: generateExpenseReport,
+    },
+    {
+      id: "cash",
+      title: "Cash Transactions Report",
+      description: "Generate Excel report of all cash income and cash expense records for the selected financial year.",
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      color: "emerald",
+      bgColor: "bg-emerald-50",
+      borderColor: "border-emerald-200",
+      btnColor: "bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500",
+      action: generateCashReport,
     },
     {
       id: "paid",

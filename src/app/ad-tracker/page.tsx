@@ -8,8 +8,10 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, AD_TYPES, PAYMENT_MODES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, AD_TYPES, PAYMENT_MODES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
+import CashPersonField from "../../components/CashPersonField";
+import { recordCashTransaction } from "../../utils/cashManagement";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 type PaymentMode = "Cash" | "Cheque" | "NEFT";
@@ -34,6 +36,7 @@ export default function AdTrackerPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [cashPersonName, setCashPersonName] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function AdTrackerPage() {
     if (paid > total) ne.paidAmount = "Paid cannot exceed total";
     if (paid > 0 && !modeOfPayment) ne.modeOfPayment = "Select payment mode";
     if (paid > 0 && requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) ne.chequeNumber = "Required";
+    if (paid > 0 && modeOfPayment === "Cash" && !cashPersonName.trim()) ne.cashPersonName = "Cash Received By is mandatory";
     setErrors(ne); return Object.keys(ne).length === 0;
   };
 
@@ -85,6 +89,25 @@ export default function AdTrackerPage() {
         const rn = `ABS/${receiptYear}/${n}`;
         const incRef = push(ref(db, dbPath.income(currentYear)));
         const ik = incRef.key;
+        // Record cash transaction if payment mode is Cash
+        if (paid > 0 && modeOfPayment === "Cash" && cashPersonName.trim()) {
+          await recordCashTransaction(
+            {
+              date,
+              amount: paid,
+              transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+              cashPersonName: cashPersonName.trim(),
+              sourceEntity: "Ad",
+              sourceEntityKey: adKey as string,
+              sourceReference: rn,
+              inputBy,
+              createdBy: user?.uid,
+              createdAt: new Date().toISOString(),
+            },
+            currentYear
+          );
+        }
+
         await set(incRef, { key: ik, date, receiptNumber: rn, name: name.trim(), mobileNumber: mobileNumber.trim(), panNumber: panNumber.trim().toUpperCase(), amount: paid, category: DEFAULTS.AD_INCOME_CATEGORY, modeOfPayment, chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null, referredBy: referredBy.trim() || null, inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, adLink: adKey });
         const tiRef = ref(db, dbPath.totalIncome(currentYear));
         const tiSnap = await get(tiRef);
@@ -129,6 +152,16 @@ export default function AdTrackerPage() {
               <div><label className="block text-sm font-medium">Paid Amount *</label><input type="number" value={paidAmount} onChange={e => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className={`w-full px-3 py-2 border rounded-md ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.paidAmount && <p className="text-sm text-red-500">{errors.paidAmount}</p>}</div>
               {(total > 0) && (<div><label className="block text-sm font-medium">Pending</label><div className={`w-full px-3 py-2 border rounded-md bg-gray-100 ${pending > 0 ? "text-red-600" : "text-green-600"}`}>₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>)}
               {paid > 0 && (<><div><label className="block text-sm font-medium">Mode *</label><div className="flex gap-4">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map(m => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => setModeOfPayment(m)} className="h-4 w-4" /><span className="ml-1">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
+                {modeOfPayment === "Cash" && (
+                  <CashPersonField
+                    modeOfPayment={modeOfPayment}
+                    transactionType="CashIn"
+                    cashPersonName={cashPersonName}
+                    setCashPersonName={setCashPersonName}
+                    error={errors.cashPersonName}
+                    setError={(field, value) => setErrors({ ...errors, [field]: value })}
+                  />
+                )}
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} # *</label><input type="text" value={chequeNumber} onChange={e => setChequeNumber(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.chequeNumber ? "border-red-500" : "border-gray-300"}`} />{errors.chequeNumber && <p className="text-sm text-red-500">{errors.chequeNumber}</p>}</div>)}
               </>)}
               <div><label className="block text-sm font-medium">Referred By</label><input type="text" value={referredBy} onChange={e => setReferredBy(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="Enter referrer name (optional)" /></div>

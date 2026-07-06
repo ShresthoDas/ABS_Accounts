@@ -1,3 +1,4 @@
+"use client";
 // ============================================================
 // Centrally managed constants for ABS Accounts application
 // ============================================================
@@ -20,6 +21,10 @@ export const DB_PATHS = {
   SPOT_COLLECTION: 'SpotCollection',
   ADS: 'Ads',
   UNAUTH_QUEUE: 'UnauthQueue',
+
+  // Cash Management
+  CASH_TRANSACTIONS: 'CashTransactions',
+  CASH_TILL: 'CashTill',
 
   // Projected Budgets
   PROJECTED_INCOME: 'ProjectedIncome',
@@ -76,6 +81,12 @@ export const dbPath = {
   /** e.g. dbPath.projectedExpense("2024") => "UAT/Accounts/2024/ProjectedExpense" */
   projectedExpense: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.PROJECTED_EXPENSE}`,
   
+  /** e.g. dbPath.cashTransactions("2024") => "UAT/Accounts/2024/CashTransactions" */
+  cashTransactions: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TRANSACTIONS}`,
+  
+  /** e.g. dbPath.cashTill("2024") => "UAT/Accounts/2024/CashTill" */
+  cashTill: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TILL}`,
+
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
   unAuthQueue: `${DB_PATHS.ROOT}/${DB_PATHS.UNAUTH_QUEUE}`,
@@ -106,6 +117,7 @@ export const ROUTES = {
   UNAUTH_QUEUE: '/unauth-queue',
   USER_MANAGEMENT: '/user-management',
   REPORTS: '/reports',
+  CASH_REPORT: '/cash-report',
 } as const;
 
 // --------------- User Types (permissions) ---------------
@@ -153,6 +165,14 @@ export type PaymentMode = typeof ALL_PAYMENT_MODES[number];
 export const requiresReferenceNumber = (mode: string): boolean => {
   return mode === PAYMENT_MODES.CHEQUE || mode === PAYMENT_MODES.NEFT;
 };
+
+// --------------- Cash Transaction Types ---------------
+export const CASH_TRANSACTION_TYPES = {
+  CASH_IN: 'CashIn',
+  CASH_OUT: 'CashOut',
+} as const;
+
+export type CashTransactionType = typeof CASH_TRANSACTION_TYPES[keyof typeof CASH_TRANSACTION_TYPES];
 
 // --------------- Category Options ---------------
 export const INCOME_CATEGORIES = [
