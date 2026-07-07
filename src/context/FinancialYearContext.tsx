@@ -18,21 +18,18 @@ const FinancialYearContext = createContext<FinancialYearContextType>({
 
 const STORAGE_KEY = "abs_selected_financial_year";
 
-export function FinancialYearProvider({ children }: { children: ReactNode }) {
-  const [selectedYear, setSelectedYearState] = useState<string>(getCurrentYearString());
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
+function getInitialYear(): string {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored || getCurrentYearString();
+  } catch (e) {
+    return getCurrentYearString();
+  }
+}
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSelectedYearState(stored);
-      }
-    } catch (e) {
-      console.error("Error reading financial year from localStorage:", e);
-    }
-  }, []);
+export function FinancialYearProvider({ children }: { children: ReactNode }) {
+  const [selectedYear, setSelectedYearState] = useState<string>(getInitialYear);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
   const setSelectedYear = useCallback((year: string) => {
     setSelectedYearState(year);

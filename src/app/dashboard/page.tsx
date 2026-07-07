@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "../../utils/constants";
+import BudgetChart from "../../components/BudgetChart";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import FinancialYearSelector from "../../components/FinancialYearSelector";
 import StartNewFYButton from "../../components/StartNewFYButton";
@@ -25,6 +26,8 @@ export default function DashboardPage() {
   const { selectedYear } = useFinancialYear();
   const [totalExpense, setTotalExpense] = useState<number>(0);
   const [totalIncome, setTotalIncome] = useState<number>(0);
+  const [projectedIncome, setProjectedIncome] = useState<number>(0);
+  const [projectedExpense, setProjectedExpense] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const router = useRouter();
@@ -68,6 +71,32 @@ export default function DashboardPage() {
       } else {
         setTotalIncome(0);
       }
+
+      // Fetch projected income total
+      const projectedIncomeRef = ref(db, dbPath.projectedIncome(currentYear));
+      const projectedIncomeSnapshot = await get(projectedIncomeRef);
+      let projIncome = 0;
+      if (projectedIncomeSnapshot.exists()) {
+        const data = projectedIncomeSnapshot.val();
+        Object.values(data).forEach((val: any) => {
+          const num = typeof val === 'number' ? val : parseFloat(val) || 0;
+          projIncome = Math.round((projIncome + num) * 100) / 100;
+        });
+      }
+      setProjectedIncome(projIncome);
+
+      // Fetch projected expense total
+      const projectedExpenseRef = ref(db, dbPath.projectedExpense(currentYear));
+      const projectedExpenseSnapshot = await get(projectedExpenseRef);
+      let projExpense = 0;
+      if (projectedExpenseSnapshot.exists()) {
+        const data = projectedExpenseSnapshot.val();
+        Object.values(data).forEach((val: any) => {
+          const num = typeof val === 'number' ? val : parseFloat(val) || 0;
+          projExpense = Math.round((projExpense + num) * 100) / 100;
+        });
+      }
+      setProjectedExpense(projExpense);
     };
 
     if (userData) {
@@ -380,6 +409,31 @@ export default function DashboardPage() {
                       </svg>
                     </div>
                   </button>
+                </div>
+              )}
+
+              {/* Budget Charts Section */}
+              {userData.userType !== "Front Office" && (
+                <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-800">Budget Overview</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <BudgetChart
+                        title="Projected Expense vs Actual"
+                        projected={projectedExpense}
+                        actual={totalExpense}
+                        type="expense"
+                      />
+                      <BudgetChart
+                        title="Projected Income vs Actual"
+                        projected={projectedIncome}
+                        actual={totalIncome}
+                        type="income"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
