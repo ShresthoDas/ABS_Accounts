@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../../context/AuthContext";
 import ProtectedRoute from "../../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../../utils/getUserDoc";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
@@ -9,6 +9,7 @@ import { ref, get, set, update, remove } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
 import { dbPath, EXPENSE_CATEGORIES } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
+import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
 interface ExpenseItem {
   key: string;
@@ -23,6 +24,7 @@ interface ExpenseItem {
   inputBy?: string;
   createdBy?: string;
   createdAt?: string;
+  description?: string;
 }
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
@@ -49,6 +51,11 @@ export default function ExpenseDetailPage() {
   const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+  const [panLookupLoading, setPanLookupLoading] = useState(false);
 
   const categoryOptions = EXPENSE_CATEGORIES.map((c) => ({ value: c.value, label: c.label }));
 
@@ -67,6 +74,29 @@ export default function ExpenseDetailPage() {
       fetchExpenseDetail();
     }
   }, [userData, params.id]);
+
+  // Watch name changes with debounce for PAN lookup (only in edit mode)
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      if (isEditing && name.trim()) {
+        setPanLookupLoading(true);
+        lookupPanByName(name, selectedYear).then((pan) => {
+          if (pan) {
+            setPanNumber(pan);
+          }
+          setPanLookupLoading(false);
+        });
+      }
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name, selectedYear, isEditing]);
 
   const fetchExpenseDetail = async () => {
     try {
@@ -88,6 +118,7 @@ export default function ExpenseDetailPage() {
         setModeOfPayment((expenseItem.modeOfPayment as ModeOfPayment) || "");
         setChequeNumber(expenseItem.chequeNumber || "");
         setInputBy(expenseItem.inputBy || "");
+        setDescription(expenseItem.description || "");
       } else {
         setExpense(null);
       }
@@ -164,6 +195,7 @@ export default function ExpenseDetailPage() {
         modeOfPayment,
         chequeNumber: (modeOfPayment === "Cheque" || modeOfPayment === "NEFT") ? chequeNumber : null,
         inputBy: inputBy || userData.name,
+        description: description.trim() || null,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
       };
@@ -188,6 +220,9 @@ export default function ExpenseDetailPage() {
         changedByUid: user.uid,
         changedAt: new Date().toISOString(),
       });
+
+      // Save to Patron for future lookups
+      savePatronIfNeeded(name, panNumber);
 
       alert("Expense record updated successfully!");
       setIsEditing(false);
@@ -250,7 +285,7 @@ export default function ExpenseDetailPage() {
               <form onSubmit={handleEdit} className="space-y-6">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Bill Number</label><input type="text" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />{panLookupLoading && <p className="mt-1 text-xs text-blue-600">Looking up PAN...</p>}</div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN Number <span className="text-red-500">*</span></label><input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" maxLength={10} required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
@@ -272,10 +307,11 @@ export default function ExpenseDetailPage() {
                 {(modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && (
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
                 )}
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 text-xs">(optional)</span></label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter any additional details or notes" rows={2} /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Input By</label><input type="text" value={inputBy} onChange={(e) => setInputBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
                 <div className="flex gap-3">
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">{saving ? "Saving..." : "Save Changes"}</button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (expense) { setDate(expense.date || ""); setBillNumber(expense.billNumber || ""); setName(expense.name || ""); setPanNumber(expense.panNumber || ""); setAmount(expense.amount?.toString() || ""); setCategory(expense.category || ""); setModeOfPayment((expense.modeOfPayment as ModeOfPayment) || ""); setChequeNumber(expense.chequeNumber || ""); setInputBy(expense.inputBy || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">Cancel</button>
+                  <button type="button" onClick={() => { setIsEditing(false); if (expense) { setDate(expense.date || ""); setBillNumber(expense.billNumber || ""); setName(expense.name || ""); setPanNumber(expense.panNumber || ""); setAmount(expense.amount?.toString() || ""); setCategory(expense.category || ""); setModeOfPayment((expense.modeOfPayment as ModeOfPayment) || ""); setChequeNumber(expense.chequeNumber || ""); setInputBy(expense.inputBy || ""); setDescription(expense.description || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">Cancel</button>
                 </div>
               </form>
             </div>
@@ -316,6 +352,13 @@ export default function ExpenseDetailPage() {
                       <div><p className="text-sm text-gray-500">Created At</p><p className="text-base font-medium text-gray-900">{expense.createdAt ? new Date(expense.createdAt).toLocaleString('en-IN') : '-'}</p></div>
                     </div>
                   </div>
+                  {expense.description && (
+                    <div><h3 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Description</h3>
+                      <div className="bg-gray-50 p-4 rounded-md">
+                        <p className="text-base text-gray-900 whitespace-pre-wrap">{expense.description}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </>

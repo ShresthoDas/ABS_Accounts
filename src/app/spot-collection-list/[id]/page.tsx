@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../../context/AuthContext";
 import ProtectedRoute from "../../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../../utils/getUserDoc";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
@@ -10,6 +10,7 @@ import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
 import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
+import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -55,6 +56,10 @@ export default function SpotCollectionDetailPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
 
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+  const [panLookupLoading, setPanLookupLoading] = useState(false);
+
   useEffect(() => {
     if (user) {
       getUserDoc(user.uid).then((data) => setUserData(data)).finally(() => setLoading(false));
@@ -64,6 +69,29 @@ export default function SpotCollectionDetailPage() {
   useEffect(() => {
     if (userData && params.id) fetchDetail();
   }, [userData, params.id]);
+
+  // Watch name changes with debounce for PAN lookup (only in edit mode)
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      if (isEditing && name.trim()) {
+        setPanLookupLoading(true);
+        lookupPanByName(name, selectedYear).then((pan) => {
+          if (pan) {
+            setPanNumber(pan);
+          }
+          setPanLookupLoading(false);
+        });
+      }
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name, selectedYear, isEditing]);
 
   const fetchDetail = async () => {
     try {
@@ -231,6 +259,9 @@ export default function SpotCollectionDetailPage() {
         changedAt: new Date().toISOString(),
       });
 
+      // Save to Patron for future lookups
+      savePatronIfNeeded(name, panNumber);
+
       alert("Spot Collection updated successfully!");
       setIsEditing(false);
       fetchDetail();
@@ -271,7 +302,7 @@ export default function SpotCollectionDetailPage() {
             <div className="bg-white p-6 rounded-lg shadow">
               <form onSubmit={handleEdit} className="space-y-6">
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
-                <div><label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required />{panLookupLoading && <p className="mt-1 text-xs text-blue-600">Looking up PAN...</p>}</div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label><input type="tel" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" maxLength={10} /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN Number <span className="text-red-500">*</span></label><input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" maxLength={10} required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" required /></div>
