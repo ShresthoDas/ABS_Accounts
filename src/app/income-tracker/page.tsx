@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../context/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
@@ -12,6 +12,7 @@ import { dbPath, getCurrentYearShort, INCOME_CATEGORIES, CASH_TRANSACTION_TYPES 
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
+import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -218,6 +219,9 @@ export default function IncomeTrackerPage() {
         // Automatically generate and download PDF after successful submission
         generateReceiptPDF(incomeData);
 
+        // Save to Patron for future lookups
+        savePatronIfNeeded(name, panNumber);
+
         // Reset form after submission
         setName("");
         setMobileNumber("");
@@ -239,6 +243,27 @@ export default function IncomeTrackerPage() {
       }
     }
   };
+
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+  const [panLookupLoading, setPanLookupLoading] = useState(false);
+
+  // Watch name changes with debounce
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      lookupPanByName(name, selectedYear).then((pan) => {
+        setPanNumber(pan);
+      });
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name]);
 
   const showChequeField = modeOfPayment === "Cheque" || modeOfPayment === "NEFT";
 
