@@ -245,7 +245,7 @@ export default function StallDetailPage() {
         updatedBy: user.uid,
       };
 
-      // Handle income record changes based on paid today amount
+      // Handle income record changes
       if (paidTodayAmount > 0) {
         // Create a NEW separate income record for this payment (preserves audit trail)
         const receiptYear = getCurrentYearShort();
@@ -285,8 +285,7 @@ export default function StallDetailPage() {
         // Generate receipt PDF for the new income
         generateReceiptPDF(incomeData);
 
-        // Link this new income key to the stall record (overwrites previous link,
-        // but the previous income record still exists independently)
+        // Link this new income key to the stall record
         updatedData.incomeKey = incomeKey;
         updatedData.receiptNumber = newReceiptNumber;
         updatedData.modeOfPayment = modeOfPayment;
@@ -297,6 +296,22 @@ export default function StallDetailPage() {
         const totalSnapshot = await get(totalIncomeRef);
         const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
         await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
+      } else if (stall.incomeKey) {
+        // No new payment, but update the existing linked income record with any changed details
+        const incomeRef = ref(db, `${dbPath.income(currentYear)}/${stall.incomeKey}`);
+        const incomeSnapshot = await get(incomeRef);
+
+        if (incomeSnapshot.exists()) {
+          // Update the existing income record with current details
+          await update(incomeRef, {
+            name: name.trim(),
+            mobileNumber: mobileNumber.trim(),
+            panNumber: panNumber.trim().toUpperCase(),
+            stallName: stallName.trim() || null,
+            modeOfPayment: stall.modeOfPayment || modeOfPayment,
+            chequeNumber: stall.chequeNumber || (requiresReferenceNumber(modeOfPayment) ? chequeNumber : null),
+          });
+        }
       }
 
       await update(stallRef, updatedData);

@@ -187,8 +187,9 @@ export default function DonationDetailPage() {
         updatedBy: user?.uid,
       };
 
-      // Handle income record - create a NEW separate income record for this payment (preserves audit trail)
+      // Handle income record changes
       if (paidTodayAmount > 0) {
+        // Create a NEW separate income record for this payment (preserves audit trail)
         const receiptYear = getCurrentYearShort();
         const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
         const counterSnapshot = await get(receiptCounterRef);
@@ -236,6 +237,21 @@ export default function DonationDetailPage() {
         const totalSnapshot = await get(totalIncomeRef);
         const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
         await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
+      } else if (donation?.incomeKey) {
+        // No new payment, but update the existing linked income record with any changed details
+        const incomeRef = ref(db, `${dbPath.income(currentYear)}/${donation.incomeKey}`);
+        const incomeSnapshot = await get(incomeRef);
+
+        if (incomeSnapshot.exists()) {
+          // Update the existing income record with current details
+          await update(incomeRef, {
+            name: editDonorName.trim(),
+            mobileNumber: editMobile.trim(),
+            panNumber: editPan.trim().toUpperCase(),
+            modeOfPayment: donation.modeOfPayment || editModeOfPayment,
+            chequeNumber: donation.chequeNumber || (requiresReferenceNumber(editModeOfPayment) ? editChequeNumber : null),
+          });
+        }
       }
 
       await update(donationRef, updatedData);
