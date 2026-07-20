@@ -35,6 +35,9 @@ export const DB_PATHS = {
   TOTAL_INCOME: 'total_income',
   TOTAL_EXPENSE: 'total_expense',
 
+  // Patrons (root-level, not per-year)
+  PATRON: 'Patron',
+
   // Counters
   RECEIPT_COUNTERS: 'ReceiptCounters',
   MEMBER_COUNTER: 'MemberCounter',
@@ -88,6 +91,8 @@ export const dbPath = {
   /** e.g. dbPath.cashTill("2024") => "UAT/Accounts/2024/CashTill" */
   cashTill: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TILL}`,
 
+  /** dbPath.patron => "UAT/Accounts/Patron" */
+  patron: `${DB_PATHS.ROOT}/${DB_PATHS.PATRON}`,
   /** e.g. dbPath.cashTransfers("2024") => "UAT/Accounts/2024/CashTransfers" */
   cashTransfers: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TRANSFERS}`,
 
