@@ -28,6 +28,9 @@ interface IncomeItem {
   createdAt?: string;
   stallLink?: string;
   donationLink?: string;
+  registrationFee?: boolean;
+  registrationFeeAmount?: number;
+  membershipAmount?: number;
 }
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
@@ -243,6 +246,9 @@ export default function IncomeDetailPage() {
         inputBy: income.inputBy || '',
         createdBy: income.createdBy,
         createdAt: income.createdAt,
+        registrationFee: income.registrationFee,
+        registrationFeeAmount: income.registrationFeeAmount,
+        membershipAmount: income.membershipAmount,
       };
       generateReceiptPDF(incomeData as any);
     }

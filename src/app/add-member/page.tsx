@@ -37,9 +37,10 @@ export default function AddMemberPage() {
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [paymentStatus, setPaymentStatus] = useState(false);
-  const [amount, setAmount] =useState<string>(DEFAULTS.MEMBER_AMOUNT);
+  const [amount, setAmount] =useState<string>(String(DEFAULTS.MEMBER_AMOUNT + DEFAULTS.REGISTRATION_FEE));
   const [receiptNumber, setReceiptNumber] = useState("");
   const [cashPersonName, setCashPersonName] = useState("");
+  const [registrationFee, setRegistrationFee] = useState(true);
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -179,6 +180,8 @@ export default function AddMemberPage() {
           memberData.modeOfPayment = modeOfPayment;
           memberData.amount = amount.trim() ? parseFloat(amount) : 0;
           memberData.chequeNumber = modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null;
+          memberData.registrationFee = registrationFee;
+          memberData.registrationFeeAmount = registrationFee ? DEFAULTS.REGISTRATION_FEE : 0;
         }
 
         // Save to Firebase with a unique key
@@ -232,6 +235,9 @@ export default function AddMemberPage() {
             const newIncomeRef = push(ref(db, dbPath.income(currentYear)));
             const incomeKey = newIncomeRef.key;
 
+            const membershipAmount = DEFAULTS.MEMBER_AMOUNT;
+            const registrationFeeAmount = registrationFee ? DEFAULTS.REGISTRATION_FEE : 0;
+
             const incomeData = {
               key: incomeKey,
               date,
@@ -247,6 +253,9 @@ export default function AddMemberPage() {
               createdAt: new Date().toISOString(),
               createdBy: user?.uid,
               memberLink: newMemberKey,
+              registrationFee: registrationFee,
+              registrationFeeAmount: registrationFeeAmount,
+              membershipAmount: membershipAmount,
             };
 
             await set(newIncomeRef, incomeData);
@@ -302,7 +311,8 @@ export default function AddMemberPage() {
         setModeOfPayment("");
         setChequeNumber("");
         setPaymentStatus(false);
-        setAmount("8000");
+        setRegistrationFee(true);
+        setAmount(String(DEFAULTS.MEMBER_AMOUNT + DEFAULTS.REGISTRATION_FEE));
         setReceiptNumber("");
         setErrors({});
         
@@ -477,6 +487,28 @@ export default function AddMemberPage() {
                 )}
               </div>
 
+              {/* Registration Fee - Checkbox (default checked for new members) */}
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    type="checkbox"
+                    id="registrationFee"
+                    checked={registrationFee}
+                    onChange={(e) => {
+                      setRegistrationFee(e.target.checked);
+                      // Recalculate amount when registration fee toggles
+                      const baseAmount = DEFAULTS.MEMBER_AMOUNT;
+                      const regFee = e.target.checked ? DEFAULTS.REGISTRATION_FEE : 0;
+                      setAmount(String(baseAmount + regFee));
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+                <label htmlFor="registrationFee" className="ml-2 block text-sm font-medium text-gray-700">
+                  Include Registration Fee (₹{DEFAULTS.REGISTRATION_FEE.toLocaleString('en-IN')})
+                </label>
+              </div>
+
               {/* Payment Status - Checkbox */}
               <div className="flex items-start">
                 <div className="flex items-center h-5">
@@ -489,7 +521,9 @@ export default function AddMemberPage() {
                       if (!e.target.checked) {
                         setModeOfPayment("");
                         setChequeNumber("");
-                        setAmount("8000");
+                        const baseAmount = DEFAULTS.MEMBER_AMOUNT;
+                        const regFee = registrationFee ? DEFAULTS.REGISTRATION_FEE : 0;
+                        setAmount(String(baseAmount + regFee));
                         setErrors({ ...errors, modeOfPayment: "", chequeNumber: "" });
                       }
                     }}
@@ -558,7 +592,7 @@ export default function AddMemberPage() {
                     )}
                   </div>
 
-                  {/* Amount - Default 8000, editable */}
+                  {/* Amount - Default membership amount, editable */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Amount (₹)

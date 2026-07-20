@@ -25,6 +25,7 @@ export const DB_PATHS = {
   // Cash Management
   CASH_TRANSACTIONS: 'CashTransactions',
   CASH_TILL: 'CashTill',
+  CASH_TRANSFERS: 'CashTransfers',
 
   // Projected Budgets
   PROJECTED_INCOME: 'ProjectedIncome',
@@ -87,6 +88,9 @@ export const dbPath = {
   /** e.g. dbPath.cashTill("2024") => "UAT/Accounts/2024/CashTill" */
   cashTill: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TILL}`,
 
+  /** e.g. dbPath.cashTransfers("2024") => "UAT/Accounts/2024/CashTransfers" */
+  cashTransfers: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.CASH_TRANSFERS}`,
+
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
   unAuthQueue: `${DB_PATHS.ROOT}/${DB_PATHS.UNAUTH_QUEUE}`,
@@ -118,6 +122,8 @@ export const ROUTES = {
   USER_MANAGEMENT: '/user-management',
   REPORTS: '/reports',
   CASH_REPORT: '/cash-report',
+  CASH_TRANSFER_TRACKER: '/cash-transfer-tracker',
+  CASH_TRANSFER_LIST: '/cash-transfer-list',
 } as const;
 
 // --------------- User Types (permissions) ---------------
@@ -306,7 +312,8 @@ export const DONATION_EVENT_CATEGORIES = [
 
 // --------------- Default Values ---------------
 export const DEFAULTS = {
-  MEMBER_AMOUNT: "8000",
+  MEMBER_AMOUNT: 10000,
+  REGISTRATION_FEE: 1000,
   MEMBER_ID_PREFIX: 'ABSPM-',
   RECEIPT_PREFIX: 'ABS',
   STALL_NUMBER_DEFAULT: 0,

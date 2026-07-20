@@ -20,6 +20,18 @@ export interface CashTransactionData {
   description?: string;
 }
 
+export interface CashTransferData {
+  key?: string | null;
+  date: string;
+  amount: number;
+  fromPerson: string;
+  toPerson: string;
+  inputBy: string;
+  createdBy?: string;
+  createdAt: string;
+  description?: string | null;
+}
+
 /**
  * Records a cash transaction and updates the cash till balance for the given person.
  * For CashIn: increases the person's till balance.
@@ -92,5 +104,91 @@ export async function reverseCashTransaction(
     name: cashPersonName,
     balance: newBalance,
     lastUpdated: new Date().toISOString(),
+  });
+}
+
+/**
+ * Records a cash transfer between two users.
+ * Deducts amount from fromPerson's till and adds to toPerson's till.
+ * Also records CashOut for sender and CashIn for receiver in CashTransactions
+ * so all cash movement appears in the Cash Management Report.
+ */
+export async function recordCashTransfer(
+  data: CashTransferData,
+  selectedYear: string
+): Promise<void> {
+  // Create the transfer record
+  const transfersRef = ref(db, dbPath.cashTransfers(selectedYear));
+  const newTransferRef = push(transfersRef);
+  const transferKey = newTransferRef.key;
+
+  const transferRecord = {
+    ...data,
+    key: transferKey,
+    createdAt: new Date().toISOString(),
+  };
+
+  await set(newTransferRef, transferRecord);
+
+  // Update the cash till balance for the sender (deduct)
+  const cashTillRef = ref(db, dbPath.cashTill(selectedYear));
+  const now = new Date().toISOString();
+  const transferRefDesc = `Cash Transfer to ${data.toPerson}`;
+  const transferToDesc = `Cash Transfer from ${data.fromPerson}`;
+
+  // Update sender's till (deduct) and record CashOut transaction
+  const senderTillSnapshot = await get(child(cashTillRef, data.fromPerson));
+  const senderBalance = senderTillSnapshot.exists() ? senderTillSnapshot.val().balance || 0 : 0;
+  const newSenderBalance = roundMoney(senderBalance - data.amount);
+
+  await update(child(cashTillRef, data.fromPerson), {
+    name: data.fromPerson,
+    balance: newSenderBalance,
+    lastUpdated: now,
+  });
+
+  // Record CashOut transaction for sender (so it appears in Cash Report)
+  const senderTxRef = push(ref(db, dbPath.cashTransactions(selectedYear)));
+  await set(senderTxRef, {
+    key: senderTxRef.key,
+    date: data.date,
+    amount: data.amount,
+    transactionType: CASH_TRANSACTION_TYPES.CASH_OUT,
+    cashPersonName: data.fromPerson,
+    sourceEntity: "Cash Transfer",
+    sourceEntityKey: transferKey,
+    sourceReference: transferRefDesc,
+    inputBy: data.inputBy,
+    createdBy: data.createdBy,
+    createdAt: now,
+    description: data.description || transferRefDesc,
+  });
+
+  // Update receiver's till (add) and record CashIn transaction
+  const receiverTillSnapshot = await get(child(cashTillRef, data.toPerson));
+  const receiverBalance = receiverTillSnapshot.exists() ? receiverTillSnapshot.val().balance || 0 : 0;
+  const newReceiverBalance = roundMoney(receiverBalance + data.amount);
+
+  await update(child(cashTillRef, data.toPerson), {
+    name: data.toPerson,
+    balance: newReceiverBalance,
+    lastUpdated: now,
+  });
+
+  // Record CashIn transaction for receiver (so it appears in Cash Report)
+  const receiverTxRef = push(ref(db, dbPath.cashTransactions(selectedYear)));
+  await set(receiverTxRef, {
+    key: receiverTxRef.key,
+    date: data.date,
+    amount: data.amount,
+    transactionType: CASH_TRANSACTION_TYPES.CASH_IN,
+    cashPersonName: data.toPerson,
+    sourceEntity: "Cash Transfer",
+    sourceEntityKey: transferKey,
+    sourceReference: transferToDesc,
+    inputBy: data.inputBy,
+    createdBy: data.createdBy,
+    createdAt: now,
+    description: data.description || transferToDesc,
   });
 }
