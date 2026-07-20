@@ -16,6 +16,9 @@ interface IncomeData {
   createdAt?: string;
   referredBy?: string | null;
   stallName?: string | null;
+  registrationFee?: boolean;
+  registrationFeeAmount?: number;
+  membershipAmount?: number;
 }
 
 // Convert image to base64 for use in PDF
@@ -168,12 +171,42 @@ export const generateReceiptPDF = async (incomeData: IncomeData) => {
   // Payment Details Table
   const paymentRows: string[][] = [
     ['Category', incomeData.category],
-    ['Amount', `Rs ${incomeData.amount.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`],
-    ['Mode of Payment', incomeData.modeOfPayment],
   ];
+
+  // If registration fee data is present, show separate line items
+  if (incomeData.registrationFee && incomeData.membershipAmount !== undefined && incomeData.registrationFeeAmount !== undefined) {
+    paymentRows.push([
+      'Membership Fee',
+      `Rs ${incomeData.membershipAmount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+    ]);
+    paymentRows.push([
+      'Registration Fee',
+      `Rs ${incomeData.registrationFeeAmount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+    ]);
+    paymentRows.push([
+      'Total Amount',
+      `Rs ${incomeData.amount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+    ]);
+  } else {
+    paymentRows.push([
+      'Amount',
+      `Rs ${incomeData.amount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`
+    ]);
+  }
+
+  paymentRows.push(['Mode of Payment', incomeData.modeOfPayment]);
 
   if (incomeData.chequeNumber) {
     paymentRows.push([

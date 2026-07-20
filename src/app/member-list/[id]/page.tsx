@@ -23,7 +23,7 @@ interface MemberItem {
   address?: string;
   emailId?: string;
   modeOfPayment?: string;
-  amount?: string;
+  amount?: string | number;
   chequeNumber?: string | null;
   referredBy?: string | null;
   inputBy?: string;
@@ -31,6 +31,9 @@ interface MemberItem {
   createdAt?: string;
   incomeKey?: string | null;
   receiptNumber?: string | null;
+  registrationFee?: boolean;
+  registrationFeeAmount?: number;
+  membershipAmount?: number;
 }
 
 export default function MemberDetailPage() {
@@ -159,6 +162,9 @@ export default function MemberDetailPage() {
     const newIncomeRef = push(ref(db, dbPath.income(year)));
     const incomeKey = newIncomeRef.key;
 
+    const membershipAmount = DEFAULTS.MEMBER_AMOUNT;
+    const registrationFeeAmount = memberData.registrationFee ? (memberData.registrationFeeAmount || DEFAULTS.REGISTRATION_FEE) : 0;
+
     const incomeData = {
       key: incomeKey,
       date: memberData.date || new Date().toISOString().split("T")[0],
@@ -174,6 +180,9 @@ export default function MemberDetailPage() {
       createdAt: new Date().toISOString(),
       createdBy: changedByUid,
       memberLink: memberData.key,
+      registrationFee: memberData.registrationFee || false,
+      registrationFeeAmount: registrationFeeAmount,
+      membershipAmount: membershipAmount,
     };
 
     await set(newIncomeRef, incomeData);
@@ -252,10 +261,15 @@ export default function MemberDetailPage() {
       // Get old data for audit
       const oldData = { ...member };
 
+      // Determine registration fee from member or default
+      const hasRegistrationFee = member.registrationFee !== undefined ? member.registrationFee : false;
+      const regFeeAmount = hasRegistrationFee ? (member.registrationFeeAmount || DEFAULTS.REGISTRATION_FEE) : 0;
+      const totalAmount = DEFAULTS.MEMBER_AMOUNT + regFeeAmount;
+
       // Generate receipt number
       const receiptNum = await generateReceiptNumber(currentYear);
 
-      // Create income record with default amount 8000
+      // Create income record with total amount (membership + registration fee)
       const incomeKey = await createIncomeRecord(
         {
           ...member,
@@ -264,9 +278,11 @@ export default function MemberDetailPage() {
           panNumber: member.panNumber || "",
           mobileNumber: member.mobileNumber || null,
           modeOfPayment: paymentModeOfPayment,
-          amount: DEFAULTS.MEMBER_AMOUNT,
+          amount: totalAmount,
           chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
           inputBy: userData.name || member.inputBy,
+          registrationFee: hasRegistrationFee,
+          registrationFeeAmount: regFeeAmount,
         },
         currentYear,
         receiptNum,
@@ -281,11 +297,13 @@ export default function MemberDetailPage() {
       const updatedData: any = {
         ...member,
         paymentStatus: true,
-        amount: DEFAULTS.MEMBER_AMOUNT,
+        amount: totalAmount,
         receiptNumber: receiptNum,
         incomeKey: incomeKey as string,
         modeOfPayment: paymentModeOfPayment,
         chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+        registrationFee: hasRegistrationFee,
+        registrationFeeAmount: regFeeAmount,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
       };
@@ -301,7 +319,7 @@ export default function MemberDetailPage() {
         entityType: "Member",
         entityId: params.id as string,
         previousData: oldData,
-        newData: { ...oldData, paymentStatus: true, amount: DEFAULTS.MEMBER_AMOUNT, receiptNumber: receiptNum, incomeKey: incomeKey as string, modeOfPayment: paymentModeOfPayment, chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null) },
+        newData: { ...oldData, paymentStatus: true, amount: totalAmount, receiptNumber: receiptNum, incomeKey: incomeKey as string, modeOfPayment: paymentModeOfPayment, chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null), registrationFee: hasRegistrationFee, registrationFeeAmount: regFeeAmount },
         changedBy: userData.name || user.email || "Unknown",
         changedByUid: user.uid,
         changedAt: new Date().toISOString(),
@@ -314,13 +332,16 @@ export default function MemberDetailPage() {
         name: member.name,
         mobileNumber: member.mobileNumber || null,
         panNumber: member.panNumber || "",
-        amount: parseInt(DEFAULTS.MEMBER_AMOUNT),
+        amount: totalAmount,
         category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
         modeOfPayment: paymentModeOfPayment,
         chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
         inputBy: userData.name || member.inputBy,
         createdBy: user.uid,
         createdAt: new Date().toISOString(),
+        registrationFee: hasRegistrationFee,
+        registrationFeeAmount: regFeeAmount,
+        membershipAmount: DEFAULTS.MEMBER_AMOUNT,
       });
 
       alert(`Payment marked as Paid. Income record created and receipt generated.\nReceipt Number: ${receiptNum}`);
@@ -424,7 +445,7 @@ export default function MemberDetailPage() {
               panNumber: panNumber || undefined,
               mobileNumber: mobileNumber || null,
               modeOfPayment,
-              amount: amount?.toString(),
+              amount: parseFloat(amount) || 0,
               chequeNumber: chequeNumber || null,
               inputBy: inputBy || userData.name,
             },
@@ -438,6 +459,10 @@ export default function MemberDetailPage() {
 
           // Update receipt counter
           await updateReceiptCounter(currentYear);
+
+          // Determine registration fee from member or default
+          const hasRegistrationFee = member.registrationFee !== undefined ? member.registrationFee : false;
+          const regFeeAmount = hasRegistrationFee ? (member.registrationFeeAmount || DEFAULTS.REGISTRATION_FEE) : 0;
 
           // Generate receipt PDF
           generateReceiptPDF({
@@ -453,6 +478,9 @@ export default function MemberDetailPage() {
             inputBy: inputBy || userData.name,
             createdBy: user.uid,
             createdAt: new Date().toISOString(),
+            registrationFee: hasRegistrationFee,
+            registrationFeeAmount: regFeeAmount,
+            membershipAmount: DEFAULTS.MEMBER_AMOUNT,
           });
         } else {
           // Payment was changed from true → false: Delete linked income record
@@ -479,16 +507,22 @@ export default function MemberDetailPage() {
         address: address || null,
         emailId: emailId || null,
         paymentStatus,
-        amount: amount || null,
+        amount: amount ? parseFloat(amount) : null,
         modeOfPayment: modeOfPayment || null,
         chequeNumber: chequeNumber || null,
         referredBy: editReferredBy.trim() || null,
         inputBy: inputBy || userData.name,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
-        incomeKey: newIncomeKey,
-        receiptNumber: newReceiptNumber,
       };
+
+      // Only include incomeKey and receiptNumber if they have values to avoid Firebase "undefined" errors
+      if (newIncomeKey !== undefined) {
+        updatedData.incomeKey = newIncomeKey;
+      }
+      if (newReceiptNumber !== undefined) {
+        updatedData.receiptNumber = newReceiptNumber;
+      }
 
       // Update member record
       await update(memberRef, updatedData);
@@ -894,7 +928,7 @@ export default function MemberDetailPage() {
                         <div>
                           <p className="text-sm text-gray-500">Amount</p>
                           <p className="text-base font-medium text-gray-900">
-                            ₹ {parseFloat(member.amount).toLocaleString('en-IN', {
+                            ₹ {Number(member.amount).toLocaleString('en-IN', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2
                             })}
@@ -962,7 +996,7 @@ export default function MemberDetailPage() {
                 <p className="text-sm text-gray-500 mb-4">
                   This will:
                   <br />• Set payment status to <strong>Paid</strong>
-                  <br />• Create an income record of <strong>₹ {parseInt(DEFAULTS.MEMBER_AMOUNT).toLocaleString('en-IN')}</strong>
+                  <br />• Create an income record (membership fee + registration fee if applicable)
                   <br />• Generate a receipt number and PDF
                   <br />• Link the income record to this member
                 </p>

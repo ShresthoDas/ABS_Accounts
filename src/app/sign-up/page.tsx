@@ -29,6 +29,7 @@ interface MemberFormState {
   modeOfPayment: string;
   chequeNumber: string;
   amount: string;
+  registrationFee: boolean;
 }
 
 const defaultMemberFormState: MemberFormState = {
@@ -42,7 +43,8 @@ const defaultMemberFormState: MemberFormState = {
   paymentStatus: false,
   modeOfPayment: "",
   chequeNumber: "",
-  amount: DEFAULTS.MEMBER_AMOUNT,
+  amount: String(DEFAULTS.MEMBER_AMOUNT),
+  registrationFee: true,
 };
 
 export default function SignUpPage() {
@@ -119,7 +121,8 @@ export default function SignUpPage() {
         paymentStatus: member.paymentStatus || false,
         modeOfPayment: member.modeOfPayment || "",
         chequeNumber: member.chequeNumber || "",
-        amount: member.amount?.toString() || DEFAULTS.MEMBER_AMOUNT,
+        amount: member.amount?.toString() || String(DEFAULTS.MEMBER_AMOUNT),
+        registrationFee: false,
       });
       setStep("verifyMember");
     } catch (error) {
@@ -294,12 +297,46 @@ export default function SignUpPage() {
             />
           </div>
 
+          {/* Registration Fee - Checkbox (default checked for new members) */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={memberForm.registrationFee}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  const baseAmount = DEFAULTS.MEMBER_AMOUNT;
+                  const regFee = checked ? DEFAULTS.REGISTRATION_FEE : 0;
+                  setMemberForm({ 
+                    ...memberForm, 
+                    registrationFee: checked,
+                    amount: String(baseAmount + regFee),
+                  });
+                }}
+              />
+              <span className="text-gray-700">Include Registration Fee (₹{DEFAULTS.REGISTRATION_FEE.toLocaleString('en-IN')})</span>
+            </label>
+          </div>
+
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={memberForm.paymentStatus}
-                onChange={(e) => setMemberForm({ ...memberForm, paymentStatus: e.target.checked })}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  if (!checked) {
+                    const baseAmount = DEFAULTS.MEMBER_AMOUNT;
+                    const regFee = memberForm.registrationFee ? DEFAULTS.REGISTRATION_FEE : 0;
+                    setMemberForm({ 
+                      ...memberForm, 
+                      paymentStatus: checked,
+                      amount: String(baseAmount + regFee),
+                    });
+                  } else {
+                    setMemberForm({ ...memberForm, paymentStatus: checked });
+                  }
+                }}
               />
               <span className="text-gray-700">Payment received</span>
             </label>
