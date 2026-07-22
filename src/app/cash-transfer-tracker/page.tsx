@@ -6,7 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, child } from "firebase/database";
-import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, hasCashAccess, USER_TYPES, DB_PATHS } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import { recordCashTransfer } from "../../utils/cashManagement";
 import { logAudit } from "../../utils/auditLog";
@@ -48,14 +48,41 @@ export default function CashTransferTrackerPage() {
 
   const fetchCashPersons = async () => {
     try {
+      // Fetch all persons from cash till
       const cashTillRef = ref(db, dbPath.cashTill(selectedYear));
       const tillSnapshot = await get(cashTillRef);
+      
       if (tillSnapshot.exists()) {
-        const persons = Object.keys(tillSnapshot.val()).sort();
-        setAvailablePersons(persons);
+        const allPersons = Object.keys(tillSnapshot.val());
+        
+        // If current user is Front Office, filter to only show Front Office users
+        if (userData?.userType === USER_TYPES.FRONT_OFFICE) {
+          // Fetch users to get their types
+          const usersRef = ref(db, `${DB_PATHS.ROOT}/${DB_PATHS.USERS}`);
+          const usersSnapshot = await get(usersRef);
+          
+          if (usersSnapshot.exists()) {
+            const frontOfficeNames: string[] = [];
+            usersSnapshot.forEach((childSnapshot) => {
+              const user = childSnapshot.val();
+              if (user.userType === USER_TYPES.FRONT_OFFICE && user.name && allPersons.includes(user.name)) {
+                frontOfficeNames.push(user.name);
+              }
+            });
+            setAvailablePersons(frontOfficeNames.sort());
+          } else {
+            setAvailablePersons([]);
+          }
+        } else {
+          // For GB/Accounts, show all persons from cash till
+          setAvailablePersons(allPersons.sort());
+        }
+      } else {
+        setAvailablePersons([]);
       }
     } catch (error) {
       console.error("Error fetching cash persons:", error);
+      setAvailablePersons([]);
     }
   };
 
@@ -127,7 +154,7 @@ export default function CashTransferTrackerPage() {
     }
   };
 
-  const canAccess = userData && hasAccess(userData.userType);
+  const canAccess = userData && hasCashAccess(userData.userType);
 
   if (loading) {
     return (
@@ -158,7 +185,7 @@ export default function CashTransferTrackerPage() {
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center mb-6">
-            <button onClick={() => router.push(ROUTES.DASHBOARD)} className="mr-4 text-blue-600 hover:text-blue-800">← Back to Dashboard</button>
+            <button onClick={() => router.push(ROUTES.CASH_REPORT)} className="mr-4 text-blue-600 hover:text-blue-800">← Back to Cash Report</button>
             <h1 className="text-3xl font-bold">Cash Transfer</h1>
           </div>
 
