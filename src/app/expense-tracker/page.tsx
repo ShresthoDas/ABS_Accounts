@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../context/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
@@ -11,6 +11,7 @@ import { dbPath, EXPENSE_CATEGORIES, CASH_TRANSACTION_TYPES } from "../../utils/
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
+import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
@@ -33,9 +34,14 @@ export default function ExpenseTrackerPage() {
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [cashPersonName, setCashPersonName] = useState("");
+  const [description, setDescription] = useState("");
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+  const [panLookupLoading, setPanLookupLoading] = useState(false);
 
   // Category options from constants
   const categoryOptions = [
@@ -72,6 +78,29 @@ export default function ExpenseTrackerPage() {
       setModeOfPayment("Cheque");
     }
   }, [isCashWithdrawal]);
+
+  // Watch name changes with debounce for PAN lookup
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      if (name.trim()) {
+        setPanLookupLoading(true);
+        lookupPanByName(name, selectedYear).then((pan) => {
+          if (pan) {
+            setPanNumber(pan);
+          }
+          setPanLookupLoading(false);
+        });
+      }
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name, selectedYear]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -161,6 +190,7 @@ export default function ExpenseTrackerPage() {
             modeOfPayment,
             chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
             inputBy,
+            description: description.trim() || null,
             createdAt: new Date().toISOString(),
             createdBy: user?.uid,
           };
@@ -209,6 +239,11 @@ export default function ExpenseTrackerPage() {
             changedAt: new Date().toISOString(),
           });
 
+          // Save to Patron for future lookups (only for non-cash withdrawal)
+          if (!isCashWithdrawal) {
+            savePatronIfNeeded(name, panNumber);
+          }
+
           console.log("Expense Data:", expenseData);
           alert("Expense recorded successfully!");
         }
@@ -222,6 +257,7 @@ export default function ExpenseTrackerPage() {
         setModeOfPayment("");
         setChequeNumber("");
         setCashPersonName("");
+        setDescription("");
         setErrors({});
         
       } catch (error) {
@@ -288,7 +324,14 @@ export default function ExpenseTrackerPage() {
                   Name <span className="text-red-500">*</span>
                   {isCashWithdrawal && <span className="text-blue-500 text-xs ml-1">(Person receiving cash)</span>}
                 </label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`} placeholder="Enter name" />
+                <input 
+                  type="text" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`} 
+                  placeholder="Enter name" 
+                />
+                {panLookupLoading && <p className="mt-1 text-xs text-blue-600">Looking up PAN...</p>}
                 {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
               </div>
 
@@ -360,6 +403,12 @@ export default function ExpenseTrackerPage() {
                   {errors.chequeNumber && <p className="mt-1 text-sm text-red-500">{errors.chequeNumber}</p>}
                 </div>
               )}
+
+              {/* Description - Optional */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 text-xs">(optional)</span></label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter any additional details or notes" rows={2} />
+              </div>
 
               {/* Input By */}
               <div>

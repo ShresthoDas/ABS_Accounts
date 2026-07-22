@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../context/AuthContext";
 import ProtectedRoute from "../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
@@ -12,6 +12,7 @@ import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort,
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
+import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
@@ -55,6 +56,25 @@ export default function SpotCollectionTrackerPage() {
     const today = new Date();
     setDate(today.toISOString().split("T")[0]);
   }, []);
+
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      lookupPanByName(name, selectedYear).then((pan) => {
+        setPanNumber(pan);
+      });
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -198,6 +218,9 @@ export default function SpotCollectionTrackerPage() {
           changedByUid: user?.uid || "",
           changedAt: new Date().toISOString(),
         });
+
+        // Save to Patron for future lookups
+        savePatronIfNeeded(name, panNumber);
 
         generateReceiptPDF(receiptData);
 

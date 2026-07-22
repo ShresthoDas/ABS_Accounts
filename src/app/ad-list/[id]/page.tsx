@@ -1,7 +1,7 @@
 "use client";
 import { useAuth } from "../../../context/AuthContext";
 import ProtectedRoute from "../../../components/ProtectedRoute";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getUserDoc } from "../../../utils/getUserDoc";
 import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
@@ -10,6 +10,7 @@ import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
 import { dbPath, ROUTES, hasAccess, AD_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
+import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
 // Helper to round monetary values to 2 decimal places (avoids floating point issues like 30000 - 0 = 29999.9995)
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -71,6 +72,10 @@ export default function AdDetailPage() {
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Debounced PAN lookup when name changes
+  const panLookupTimer = useRef<NodeJS.Timeout | null>(null);
+  const [panLookupLoading, setPanLookupLoading] = useState(false);
+
   useEffect(() => {
     if (user) {
       getUserDoc(user.uid)
@@ -84,6 +89,29 @@ export default function AdDetailPage() {
       fetchAdDetail();
     }
   }, [userData, params.id]);
+
+  // Watch name changes with debounce for PAN lookup (only in edit mode)
+  useEffect(() => {
+    if (panLookupTimer.current) {
+      clearTimeout(panLookupTimer.current);
+    }
+    panLookupTimer.current = setTimeout(() => {
+      if (isEditing && name.trim()) {
+        setPanLookupLoading(true);
+        lookupPanByName(name, selectedYear).then((pan) => {
+          if (pan) {
+            setPanNumber(pan);
+          }
+          setPanLookupLoading(false);
+        });
+      }
+    }, 600);
+    return () => {
+      if (panLookupTimer.current) {
+        clearTimeout(panLookupTimer.current);
+      }
+    };
+  }, [name, selectedYear, isEditing]);
 
   const fetchAdDetail = async () => {
     try {
@@ -265,8 +293,9 @@ export default function AdDetailPage() {
         updatedData.size = null;
       }
 
-      // Handle income record - create a NEW separate income record for this payment (preserves audit trail)
+      // Handle income record changes
       if (paidTodayAmount > 0) {
+        // Create a NEW separate income record for this payment (preserves audit trail)
         const receiptYear = getCurrentYearShort();
         const receiptCounterRef = ref(db, dbPath.receiptCounter(receiptYear));
         const counterSnapshot = await get(receiptCounterRef);
@@ -314,6 +343,21 @@ export default function AdDetailPage() {
         const totalSnapshot = await get(totalIncomeRef);
         const currentTotal = totalSnapshot.exists() ? totalSnapshot.val() : 0;
         await set(totalIncomeRef, Math.max(0, currentTotal + paidTodayAmount));
+      } else if (ad.incomeKey) {
+        // No new payment, but update the existing linked income record with any changed details
+        const incomeRef = ref(db, `${dbPath.income(currentYear)}/${ad.incomeKey}`);
+        const incomeSnapshot = await get(incomeRef);
+
+        if (incomeSnapshot.exists()) {
+          // Update the existing income record with current details
+          await update(incomeRef, {
+            name: name.trim(),
+            mobileNumber: mobileNumber.trim(),
+            panNumber: panNumber.trim().toUpperCase(),
+            modeOfPayment: ad.modeOfPayment || modeOfPayment,
+            chequeNumber: ad.chequeNumber || (requiresReferenceNumber(modeOfPayment) ? chequeNumber : null),
+          });
+        }
       }
 
       await update(adRef, updatedData);
@@ -328,6 +372,9 @@ export default function AdDetailPage() {
         changedByUid: user.uid,
         changedAt: new Date().toISOString(),
       });
+
+      // Save to Patron for future lookups
+      savePatronIfNeeded(name, panNumber);
 
       alert("Advertisement booking updated successfully!");
       setIsEditing(false);
@@ -397,6 +444,7 @@ export default function AdDetailPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name <span className="text-red-500">*</span></label>
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.name ? "border-red-500" : "border-gray-300"}`} required />
+                  {panLookupLoading && <p className="mt-1 text-xs text-blue-600">Looking up PAN...</p>}
                   {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
                 </div>
 
