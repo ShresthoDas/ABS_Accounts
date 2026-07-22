@@ -6,7 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get, child } from "firebase/database";
-import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, hasCashAccess } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -58,6 +58,21 @@ export default function CashReportPage() {
     }
   }, [userData, selectedYear]);
 
+  const updateTotals = (txList: CashTransaction[]) => {
+    let cashInTotal = 0;
+    let cashOutTotal = 0;
+    txList.forEach((tx) => {
+      if (tx.transactionType === "CashIn") {
+        cashInTotal = roundMoney(cashInTotal + (tx.amount || 0));
+      } else {
+        cashOutTotal = roundMoney(cashOutTotal + (tx.amount || 0));
+      }
+    });
+    setTotalCashIn(cashInTotal);
+    setTotalCashOut(cashOutTotal);
+    setNetCash(roundMoney(cashInTotal - cashOutTotal));
+  };
+
   const fetchCashData = async () => {
     try {
       // Fetch cash till balances
@@ -72,26 +87,17 @@ export default function CashReportPage() {
       const txSnapshot = await get(transactionsRef);
       if (txSnapshot.exists()) {
         const txList: CashTransaction[] = [];
-        let cashInTotal = 0;
-        let cashOutTotal = 0;
 
         txSnapshot.forEach((childSnapshot) => {
           const tx = childSnapshot.val() as CashTransaction;
           txList.push(tx);
-          if (tx.transactionType === "CashIn") {
-            cashInTotal = roundMoney(cashInTotal + (tx.amount || 0));
-          } else {
-            cashOutTotal = roundMoney(cashOutTotal + (tx.amount || 0));
-          }
         });
 
         // Sort by date descending (newest first)
         txList.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
         setTransactions(txList);
         setFilteredTransactions(txList);
-        setTotalCashIn(cashInTotal);
-        setTotalCashOut(cashOutTotal);
-        setNetCash(roundMoney(cashInTotal - cashOutTotal));
+        updateTotals(txList);
       }
     } catch (error) {
       console.error("Error fetching cash data:", error);
@@ -100,11 +106,14 @@ export default function CashReportPage() {
 
   const handlePersonFilter = (person: string) => {
     setSelectedPerson(person);
+    let filtered: CashTransaction[];
     if (person === "all") {
-      setFilteredTransactions(transactions);
+      filtered = transactions;
     } else {
-      setFilteredTransactions(transactions.filter((tx) => tx.cashPersonName === person));
+      filtered = transactions.filter((tx) => tx.cashPersonName === person);
     }
+    setFilteredTransactions(filtered);
+    updateTotals(filtered);
   };
 
   const getPersonBalance = (personName: string): number => {
@@ -124,7 +133,22 @@ export default function CashReportPage() {
       .reduce((sum, tx) => roundMoney(sum + (tx.amount || 0)), 0);
   };
 
-  const personNames = Object.keys(cashTillData).sort();
+  const allPersonNames = Object.keys(cashTillData).sort();
+
+  // For Front Office users, only show their own cash till entry
+  const isFrontOffice = userData?.userType === "Front Office";
+  const personNames = isFrontOffice && userData?.name
+    ? allPersonNames.filter(name => name === userData.name)
+    : allPersonNames;
+
+  const canAccess = userData && hasCashAccess(userData.userType);
+
+  // Auto-filter to show only the Front Office user's own transactions when data loads
+  useEffect(() => {
+    if (!loading && isFrontOffice && userData?.name && transactions.length > 0) {
+      handlePersonFilter(userData.name);
+    }
+  }, [transactions]);
 
   if (loading) {
     return (
@@ -136,7 +160,6 @@ export default function CashReportPage() {
     );
   }
 
-  const canAccess = userData && hasAccess(userData.userType);
   if (!canAccess) {
     return (
       <ProtectedRoute>
@@ -172,7 +195,7 @@ export default function CashReportPage() {
             </button>
           </div>
 
-          {/* Summary Cards */}
+          {/* Summary Cards - based on filtered transactions */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-700 font-medium">Total Cash Received (Cash In)</p>
@@ -230,7 +253,7 @@ export default function CashReportPage() {
                           </tr>
                         );
                       })}
-                      {selectedPerson !== "all" && (
+                      {selectedPerson !== "all" && !isFrontOffice && (
                         <tr className="border-t border-gray-200 bg-blue-50">
                           <td colSpan={5} className="px-4 py-2 text-center">
                             <button

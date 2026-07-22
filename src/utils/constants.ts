@@ -156,6 +156,11 @@ export const hasAccess = (userType: string | undefined | null): boolean => {
   return ALLOWED_USER_TYPES.includes(userType as typeof ALLOWED_USER_TYPES[number]);
 };
 
+// Helper to check if a user type has access to cash management features (GB, Accounts, or Front Office)
+export const hasCashAccess = (userType: string | undefined | null): boolean => {
+  return ALLOWED_USER_TYPES.includes(userType as typeof ALLOWED_USER_TYPES[number]) || userType === USER_TYPES.FRONT_OFFICE;
+};
+
 // --------------- Payment Modes ---------------
 export const PAYMENT_MODES = {
   CASH: 'Cash' as const,

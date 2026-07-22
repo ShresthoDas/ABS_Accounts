@@ -6,7 +6,7 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { dbPath, ROUTES, hasAccess } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, hasCashAccess, USER_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
@@ -56,6 +56,18 @@ export default function CashTransferListPage() {
 
         snapshot.forEach((childSnapshot) => {
           const transfer = childSnapshot.val() as CashTransfer;
+          
+          // Front Office users can only see transfers they are involved in
+          if (userData && userData.userType === USER_TYPES.FRONT_OFFICE) {
+            const userName = userData.name || user?.email || "";
+            const isInvolved = transfer.fromPerson === userName || 
+                              transfer.toPerson === userName || 
+                              transfer.inputBy === userName;
+            if (!isInvolved) {
+              return; // Skip this transfer
+            }
+          }
+          
           transferList.push(transfer);
           total = roundMoney(total + (transfer.amount || 0));
         });
@@ -73,7 +85,7 @@ export default function CashTransferListPage() {
     }
   };
 
-  const canAccess = userData && hasAccess(userData.userType);
+  const canAccess = userData && hasCashAccess(userData.userType);
 
   if (loading) {
     return (
