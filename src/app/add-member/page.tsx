@@ -255,6 +255,7 @@ export default function AddMemberPage() {
               createdAt: new Date().toISOString(),
               createdBy: user?.uid,
               memberLink: newMemberKey,
+              memberId: memberId,
               registrationFee: registrationFee,
               registrationFeeAmount: registrationFeeAmount,
               membershipAmount: membershipAmount,

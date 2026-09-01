@@ -342,6 +342,7 @@ export default function MemberDetailPage() {
         registrationFee: hasRegistrationFee,
         registrationFeeAmount: regFeeAmount,
         membershipAmount: DEFAULTS.MEMBER_AMOUNT,
+        memberId: member.memberId || null,
       });
 
       alert(`Payment marked as Paid. Income record created and receipt generated.\nReceipt Number: ${receiptNum}`);
@@ -481,6 +482,7 @@ export default function MemberDetailPage() {
             registrationFee: hasRegistrationFee,
             registrationFeeAmount: regFeeAmount,
             membershipAmount: DEFAULTS.MEMBER_AMOUNT,
+            memberId: member.memberId || null,
           });
         } else {
           // Payment was changed from true → false: Delete linked income record

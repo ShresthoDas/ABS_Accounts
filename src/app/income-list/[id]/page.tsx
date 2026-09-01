@@ -28,7 +28,10 @@ interface IncomeItem {
   createdBy?: string;
   createdAt?: string;
   stallLink?: string;
+  memberLink?: string;
   donationLink?: string;
+  memberId?: string;
+  donationItem?: string;
   registrationFee?: boolean;
   registrationFeeAmount?: number;
   membershipAmount?: number;
@@ -261,8 +264,29 @@ export default function IncomeDetailPage() {
     }
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (income) {
+      let memberId: string | null = (income as any).memberId || null;
+      let donationItem: string | null = (income as any).donationItem || null;
+
+      if (!memberId && income.memberLink) {
+        try {
+          const memberSnap = await get(ref(db, `${dbPath.members(selectedYear)}/${income.memberLink}`));
+          if (memberSnap.exists()) {
+            memberId = memberSnap.val().memberId || null;
+          }
+        } catch {}
+      }
+
+      if (!donationItem && income.donationLink) {
+        try {
+          const donationSnap = await get(ref(db, `${dbPath.donations(selectedYear)}/${income.donationLink}`));
+          if (donationSnap.exists()) {
+            donationItem = donationSnap.val().eventCategory || null;
+          }
+        } catch {}
+      }
+
       const incomeData = {
         date: income.date,
         receiptNumber: income.receiptNumber,
@@ -280,6 +304,8 @@ export default function IncomeDetailPage() {
         registrationFee: income.registrationFee,
         registrationFeeAmount: income.registrationFeeAmount,
         membershipAmount: income.membershipAmount,
+        memberId,
+        donationItem,
       };
       generateReceiptPDF(incomeData as any);
     }
