@@ -218,6 +218,7 @@ export default function DonationDetailPage() {
           createdAt: new Date().toISOString(),
           createdBy: user?.uid,
           donationLink: params.id as string,
+          donationItem: editEventCategory,
         };
 
         await set(newIncomeRef, incomeData);

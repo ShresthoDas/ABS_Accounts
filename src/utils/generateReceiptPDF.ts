@@ -19,6 +19,8 @@ interface IncomeData {
   registrationFee?: boolean;
   registrationFeeAmount?: number;
   membershipAmount?: number;
+  memberId?: string | null;
+  donationItem?: string | null;
 }
 
 // Convert image to base64 for use in PDF
@@ -172,6 +174,17 @@ export const generateReceiptPDF = async (incomeData: IncomeData) => {
   const paymentRows: string[][] = [
     ['Category', incomeData.category],
   ];
+
+  const descriptionParts: string[] = [];
+  if (incomeData.memberId) {
+    descriptionParts.push(`Member ID: ${incomeData.memberId}`);
+  }
+  if (incomeData.donationItem) {
+    descriptionParts.push(`Item: ${incomeData.donationItem}`);
+  }
+  if (descriptionParts.length > 0) {
+    paymentRows.push(['Description', descriptionParts.join(' | ')]);
+  }
 
   // If registration fee data is present, show separate line items
   if (incomeData.registrationFee && incomeData.membershipAmount !== undefined && incomeData.registrationFeeAmount !== undefined) {

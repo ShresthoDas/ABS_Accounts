@@ -120,6 +120,7 @@ export default function DonationTrackerPage() {
           amount: paid, category: DEFAULTS.DONATION_INCOME_CATEGORY, modeOfPayment,
           chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
           inputBy, createdAt: new Date().toISOString(), createdBy: user?.uid, donationLink: donationKey,
+          donationItem: eventCategory,
         };
         // Record cash transaction if payment mode is Cash
         if (paid > 0 && modeOfPayment === "Cash" && cashPersonName.trim()) {
@@ -159,6 +160,7 @@ export default function DonationTrackerPage() {
           modeOfPayment: modeOfPayment || "Cash",
           referredBy: referredBy.trim() || null,
           inputBy: inputBy || userData?.name || "",
+          donationItem: eventCategory,
         });
       }
 
