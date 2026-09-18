@@ -109,7 +109,7 @@ export default function MemberListPage() {
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, member ID, or father's name..." className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <p className="text-sm text-green-700">Total Collected</p>
               <p className="text-2xl font-bold text-green-600">₹ {totalCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
@@ -117,6 +117,10 @@ export default function MemberListPage() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-sm text-red-700">Total Pending</p>
               <p className="text-2xl font-bold text-red-600">₹ {totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-700">Members Paid / Total</p>
+              <p className="text-2xl font-bold text-blue-600">{members.filter((m) => m.paymentStatus).length} / {members.length}</p>
             </div>
           </div>
 
