@@ -78,6 +78,7 @@ interface StallItem {
   key: string;
   date?: string;
   stallNumber?: number;
+  stallName?: string;
   name?: string;
   stallType?: string;
   quantity?: number;
@@ -604,6 +605,7 @@ export default function ReportsPage() {
       rows.push([
         "Date",
         "Stall Number",
+        "Stall Name",
         "Name",
         "Stall Type",
         "Quantity",
@@ -637,6 +639,7 @@ export default function ReportsPage() {
           rows.push([
             item.date || "",
             item.stallNumber ?? "",
+            item.stallName || "",
             item.name || "",
             item.stallType || "",
             item.quantity ?? 1,
@@ -650,13 +653,13 @@ export default function ReportsPage() {
       }
 
       rows.push([]);
-      rows.push(["", "", "", "", "Total", totalAmount, totalPaid, totalPending, "", ""]);
+      rows.push(["", "", "", "", "", "Total", totalAmount, totalPaid, totalPending, "", ""]);
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
 
       ws["!cols"] = [
-        { wch: 12 }, { wch: 14 }, { wch: 25 }, { wch: 12 }, { wch: 10 },
+        { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 10 },
         { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       ];
 
