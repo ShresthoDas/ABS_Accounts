@@ -11,6 +11,8 @@ import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+
 interface MemberItem {
   key: string;
   memberId: string;
@@ -497,6 +499,49 @@ export default function MemberDetailPage() {
           newIncomeKey = null;
           newReceiptNumber = null;
         }
+       }
+
+      // If the member was already paid and amount/payment details changed,
+      // update the linked income record and adjust total income accordingly.
+      const paidBefore = member.paymentStatus === true;
+      const paidNow = paymentStatus === true;
+      if (paidBefore && paidNow && !paymentStatusChanged && member.incomeKey) {
+        const oldAmount = parseFloat(member.amount?.toString() || "0") || 0;
+        const newAmount = parseFloat(amount) || 0;
+        const diff = roundMoney(newAmount - oldAmount);
+
+        const incomeRef = ref(db, `${dbPath.income(currentYear)}/${member.incomeKey}`);
+        const incomeSnapshot = await get(incomeRef);
+
+        if (incomeSnapshot.exists()) {
+          await update(incomeRef, {
+            amount: newAmount,
+            modeOfPayment: modeOfPayment || "Cash",
+            chequeNumber: chequeNumber || null,
+            updatedAt: new Date().toISOString(),
+            updatedBy: user.uid,
+          });
+
+          // Audit for income update
+          const oldIncomeData = incomeSnapshot.val();
+          await logAudit({
+            action: "UPDATE",
+            entityType: "Income",
+            entityId: member.incomeKey,
+            previousData: oldIncomeData,
+            newData: { ...oldIncomeData, amount: newAmount, modeOfPayment: modeOfPayment || "Cash", chequeNumber: chequeNumber || null },
+            changedBy: userData.name || user.email || "Unknown",
+            changedByUid: user.uid,
+            changedAt: new Date().toISOString(),
+          });
+        }
+
+        // Adjust total income by the difference
+        const totalIncomeRef = ref(db, dbPath.totalIncome(currentYear));
+        const totalSnapshot = await get(totalIncomeRef);
+        if (totalSnapshot.exists()) {
+          await set(totalIncomeRef, roundMoney(totalSnapshot.val() + diff));
+        }
       }
 
       const updatedData: any = {
@@ -726,10 +771,14 @@ export default function MemberDetailPage() {
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border rounded-md bg-${member.paymentStatus ? "white" : "gray-100"} text-${member.paymentStatus ? "gray-900" : "gray-600"}`}
                     step="0.01"
                     min="0"
+                    readOnly={!member.paymentStatus}
                   />
+                  {!member.paymentStatus && (
+                    <p className="mt-1 text-xs text-gray-500">Amount is read-only until payment status is set to Paid.</p>
+                  )}
                 </div>
 
                 <div>
