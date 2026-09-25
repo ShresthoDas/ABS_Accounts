@@ -172,6 +172,18 @@ export default function DashboardPage() {
       ],
     },
     {
+      title: "Member Collection",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      color: "purple",
+      items: [
+        { label: "Collection Tracker", route: ROUTES.MEMBER_COLLECTION_LIST, icon: trackerIcon },
+      ],
+    },
+    {
       title: "Stall Bookings",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,6 +248,18 @@ export default function DashboardPage() {
         { label: "Ad List", route: ROUTES.AD_LIST, icon: listIcon },
       ],
     },
+    {
+      title: "QR Code",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4M9 12a3 3 0 100-6 3 3 0 000 6zm9 0a3 3 0 100-6 3 3 0 000 6z" />
+        </svg>
+      ),
+      color: "pink",
+      items: [
+        { label: "UPI QR Code", route: ROUTES.QR_CODE, icon: trackerIcon },
+      ],
+    },
   ];
 
   const colorMap: Record<string, { bg: string; hover: string; ring: string; light: string }> = {
@@ -247,6 +271,8 @@ export default function DashboardPage() {
     violet: { bg: "bg-violet-600", hover: "hover:bg-violet-700", ring: "focus:ring-violet-500", light: "bg-violet-50" },
     cyan: { bg: "bg-cyan-600", hover: "hover:bg-cyan-700", ring: "focus:ring-cyan-500", light: "bg-cyan-50" },
     teal: { bg: "bg-teal-600", hover: "hover:bg-teal-700", ring: "focus:ring-teal-500", light: "bg-teal-50" },
+    purple: { bg: "bg-purple-600", hover: "hover:bg-purple-700", ring: "focus:ring-purple-500", light: "bg-purple-50" },
+    pink: { bg: "bg-pink-600", hover: "hover:bg-pink-700", ring: "focus:ring-pink-500", light: "bg-pink-50" },
   };
 
   if (loading) {
@@ -467,7 +493,7 @@ export default function DashboardPage() {
               {/* Feature Group Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {featureGroups
-                  .filter(group => userData.userType === "Front Office" ? ["Spot Collection", "Members"].includes(group.title) : true)
+                  .filter(group => userData.userType === "Front Office" ? ["Spot Collection", "Members", "Member Collection", "QR Code"].includes(group.title) : true)
                   .map((group) => {
                     const colors = colorMap[group.color];
                     return (

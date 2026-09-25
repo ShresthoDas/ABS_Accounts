@@ -20,6 +20,7 @@ export const DB_PATHS = {
   SPOT_COLLECTION: 'SpotCollection',
   ADS: 'Ads',
   UNAUTH_QUEUE: 'UnauthQueue',
+  MEMBER_COLLECTIONS: 'MemberCollections',
 
   // Cash Management
   CASH_TRANSACTIONS: 'CashTransactions',
@@ -98,6 +99,9 @@ export const dbPath = {
   /** dbPath.memberCounter => "UAT/Accounts/MemberCounter" */
   memberCounter: `${DB_PATHS.ROOT}/${DB_PATHS.MEMBER_COUNTER}`,
   unAuthQueue: `${DB_PATHS.ROOT}/${DB_PATHS.UNAUTH_QUEUE}`,
+
+  /** e.g. dbPath.memberCollections("2024") => "UAT/Accounts/2024/MemberCollections" */
+  memberCollections: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.MEMBER_COLLECTIONS}`,
 };
 
 // --------------- App Route Paths ---------------
@@ -128,6 +132,9 @@ export const ROUTES = {
   CASH_REPORT: '/cash-report',
   CASH_TRANSFER_TRACKER: '/cash-transfer-tracker',
   CASH_TRANSFER_LIST: '/cash-transfer-list',
+  MEMBER_COLLECTION_LIST: '/member-collection-list',
+  MEMBER_COLLECTION_DETAIL: '/member-collection-list/[id]',
+  QR_CODE: '/qr-code',
 } as const;
 
 // --------------- User Types (permissions) ---------------
