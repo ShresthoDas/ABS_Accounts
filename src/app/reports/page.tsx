@@ -593,6 +593,97 @@ export default function ReportsPage() {
     } finally {
       setGenerating(null);
     }
+};
+  // ==================== Membership Renewal Report ====================
+  const generateMembershipRenewalReport = async () => {
+    setGenerating("renewal");
+    try {
+      const currentYearNum = parseInt(selectedYear);
+      const lastYear = (currentYearNum - 1).toString();
+      
+      const [currentYearMembersSnap, lastYearMembersSnap] = await Promise.all([
+        get(ref(db, dbPath.members(selectedYear))),
+        get(ref(db, dbPath.members(lastYear))),
+      ]);
+
+      const rows: any[][] = [];
+      rows.push([
+        "Member ID",
+        "Name",
+        "Mobile Number",
+        `Payment Status ${lastYear}`,
+        `Payment Status ${selectedYear}`,
+        "Renewal Status",
+      ]);
+
+      // Build lookup of last year members by memberId
+      const lastYearMembers = new Map<string, any>();
+      if (lastYearMembersSnap.exists()) {
+        const data = lastYearMembersSnap.val();
+        Object.keys(data).forEach((key) => {
+          const member = { key, ...data[key] };
+          if (member.memberId) {
+            lastYearMembers.set(member.memberId, member);
+          }
+        });
+      }
+
+      let totalLastYearPaid = 0;
+      let totalThisYearPaid = 0;
+      let totalPendingRenewal = 0;
+
+      if (currentYearMembersSnap.exists()) {
+        const data = currentYearMembersSnap.val();
+        const currentYearMembers: MemberItem[] = Object.keys(data)
+          .map((key) => ({ key, ...data[key] }))
+          .filter((m) => m.paymentStatus === false); // Only unpaid this year
+
+        currentYearMembers.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+        currentYearMembers.forEach((member) => {
+          const lastYearMember = member.memberId ? lastYearMembers.get(member.memberId) : null;
+          const lastYearPaid = lastYearMember?.paymentStatus === true;
+          const thisYearPaid = member.paymentStatus === true;
+
+          // Only include if they paid last year but not this year
+          if (lastYearPaid && !thisYearPaid) {
+            totalLastYearPaid++;
+            totalPendingRenewal++;
+            rows.push([
+              member.memberId || "",
+              member.name || "",
+              member.mobileNumber || "",
+              lastYearPaid ? "Paid" : "Unpaid",
+              thisYearPaid ? "Paid" : "Unpaid",
+              "Pending Renewal",
+            ]);
+          } else if (lastYearPaid && thisYearPaid) {
+            totalLastYearPaid++;
+            totalThisYearPaid++;
+          } else if (!lastYearPaid && thisYearPaid) {
+            totalThisYearPaid++;
+          }
+        });
+      }
+
+      rows.push([]);
+      rows.push(["", "", "", `Total Paid ${lastYear}: ${totalLastYearPaid}`, `Total Paid ${selectedYear}: ${totalThisYearPaid}`, `Pending Renewal: ${totalPendingRenewal}`]);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      ws["!cols"] = [
+        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 18 },
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "Membership Renewal Report");
+      XLSX.writeFile(wb, `Membership_Renewal_Report_${selectedYear}.xlsx`);
+    } catch (error) {
+      console.error("Error generating membership renewal report:", error);
+      alert("Error generating membership renewal report. Please try again.");
+    } finally {
+      setGenerating(null);
+    }
   };
 
   // ==================== Stall Report ====================
@@ -880,6 +971,21 @@ export default function ReportsPage() {
       borderColor: "border-violet-200",
       btnColor: "bg-violet-600 hover:bg-violet-700 focus:ring-violet-500",
       action: generateAdReport,
+    },
+    {
+      id: "renewal",
+      title: "Membership Renewal Report",
+      description: "Generate Excel report of members who paid last year but have not renewed this year.",
+      icon: (
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ),
+      color: "amber",
+      bgColor: "bg-amber-50",
+      borderColor: "border-amber-200",
+      btnColor: "bg-amber-600 hover:bg-amber-700 focus:ring-amber-500",
+      action: generateMembershipRenewalReport,
     },
   ];
 
