@@ -260,6 +260,19 @@ export default function DashboardPage() {
         { label: "UPI QR Code", route: ROUTES.QR_CODE, icon: trackerIcon },
       ],
     },
+    {
+      title: "Event Registration",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      ),
+      color: "emerald",
+      items: [
+        { label: "Register for Event", route: ROUTES.EVENT_REGISTRATION, icon: trackerIcon },
+        { label: "Event Token Tracker", route: ROUTES.EVENT_TOKEN_TRACKER, icon: listIcon },
+      ],
+    },
   ];
 
   const colorMap: Record<string, { bg: string; hover: string; ring: string; light: string }> = {
@@ -273,6 +286,7 @@ export default function DashboardPage() {
     teal: { bg: "bg-teal-600", hover: "hover:bg-teal-700", ring: "focus:ring-teal-500", light: "bg-teal-50" },
     purple: { bg: "bg-purple-600", hover: "hover:bg-purple-700", ring: "focus:ring-purple-500", light: "bg-purple-50" },
     pink: { bg: "bg-pink-600", hover: "hover:bg-pink-700", ring: "focus:ring-pink-500", light: "bg-pink-50" },
+    emerald: { bg: "bg-emerald-600", hover: "hover:bg-emerald-700", ring: "focus:ring-emerald-500", light: "bg-emerald-50" },
   };
 
   if (loading) {
@@ -493,7 +507,7 @@ export default function DashboardPage() {
               {/* Feature Group Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {featureGroups
-                  .filter(group => userData.userType === "Front Office" ? ["Spot Collection", "Members", "Member Collection", "QR Code"].includes(group.title) : true)
+                  .filter(group => userData.userType === "Front Office" ? ["Spot Collection", "Members", "Member Collection", "QR Code", "Event Registration"].includes(group.title) : true)
                   .map((group) => {
                     const colors = colorMap[group.color];
                     return (
