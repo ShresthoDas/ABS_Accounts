@@ -8,7 +8,7 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, DONATION_EVENT_CATEGORIES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, DONATION_EVENT_CATEGORIES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
@@ -33,7 +33,7 @@ export default function DonationTrackerPage() {
   const [familyDetails, setFamilyDetails] = useState("");
   const [amount, setAmount] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
-  const [modeOfPayment, setModeOfPayment] = useState<"Cash" | "Cheque" | "NEFT" | "">("");
+  const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -201,7 +201,7 @@ export default function DonationTrackerPage() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Family Details</label><textarea value={familyDetails} onChange={(e) => setFamilyDetails(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" rows={2} /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.amount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount}</p>}</div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹)</label><input type="number" value={paidAmount} onChange={(e) => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className="w-full px-3 py-2 border border-gray-300 rounded-md" step="0.01" min="0" /></div>
-              {showPayment && (<><div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as const).map((m) => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => { setModeOfPayment(m); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600" /><span className="ml-2 text-gray-700">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500 mt-1">{errors.modeOfPayment}</p>}</div>
+              {showPayment && (<><div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{ALL_PAYMENT_MODES.map((m) => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => { setModeOfPayment(m); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600" /><span className="ml-2 text-gray-700">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500 mt-1">{errors.modeOfPayment}</p>}</div>
                 {modeOfPayment === "Cash" && (
                   <CashPersonField
                     modeOfPayment={modeOfPayment}

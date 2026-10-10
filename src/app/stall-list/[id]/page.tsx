@@ -8,7 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
+import { dbPath, ROUTES, hasAccess, STALL_TYPES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
@@ -37,8 +37,6 @@ interface StallItem {
   createdAt?: string;
   [key: string]: any;
 }
-
-type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 export default function StallDetailPage() {
   const { user } = useAuth();
@@ -466,7 +464,7 @@ export default function StallDetailPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                       <div className="flex space-x-6">
-                        {(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (
+                        {ALL_PAYMENT_MODES.map((mop) => (
                           <label key={mop} className="flex items-center">
                             <input type="radio" name="editModeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => setModeOfPayment(e.target.value as PaymentMode)} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                             <span className="ml-2 text-gray-700">{mop}</span>

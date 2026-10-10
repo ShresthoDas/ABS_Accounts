@@ -21,6 +21,7 @@ export const DB_PATHS = {
   ADS: 'Ads',
   UNAUTH_QUEUE: 'UnauthQueue',
   MEMBER_COLLECTIONS: 'MemberCollections',
+  EVENT_REGISTRATIONS: 'EventRegistrations',
 
   // Cash Management
   CASH_TRANSACTIONS: 'CashTransactions',
@@ -41,6 +42,8 @@ export const DB_PATHS = {
   // Counters
   RECEIPT_COUNTERS: 'ReceiptCounters',
   MEMBER_COUNTER: 'MemberCounter',
+  EVENT_TOKEN_COUNTER: 'EventTokenCounters',
+  EVENT_NON_MEMBER_TOKEN_COUNTER: 'EventNonMemberTokenCounter',
   USERS: 'Users',
 } as const;
 
@@ -102,6 +105,15 @@ export const dbPath = {
 
   /** e.g. dbPath.memberCollections("2024") => "UAT/Accounts/2024/MemberCollections" */
   memberCollections: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.MEMBER_COLLECTIONS}`,
+
+  /** e.g. dbPath.eventRegistrations("2024") => "UAT/Accounts/2024/EventRegistrations" */
+  eventRegistrations: (year: string | number) => `${DB_PATHS.ROOT}/${year}/${DB_PATHS.EVENT_REGISTRATIONS}`,
+
+  /** e.g. dbPath.eventTokenCounter() => "UAT/Accounts/EventTokenCounters" */
+  eventTokenCounter: () => `${DB_PATHS.ROOT}/${DB_PATHS.EVENT_TOKEN_COUNTER}`,
+
+  /** e.g. dbPath.eventNonMemberTokenCounter() => "UAT/Accounts/EventNonMemberTokenCounter" */
+  eventNonMemberTokenCounter: () => `${DB_PATHS.ROOT}/${DB_PATHS.EVENT_NON_MEMBER_TOKEN_COUNTER}`,
 };
 
 // --------------- App Route Paths ---------------
@@ -135,6 +147,8 @@ export const ROUTES = {
   MEMBER_COLLECTION_LIST: '/member-collection-list',
   MEMBER_COLLECTION_DETAIL: '/member-collection-list/[id]',
   QR_CODE: '/qr-code',
+  EVENT_REGISTRATION: '/event-registration',
+  EVENT_TOKEN_TRACKER: '/event-token-tracker',
 } as const;
 
 // --------------- User Types (permissions) ---------------
@@ -177,15 +191,16 @@ export const PAYMENT_MODES = {
   CASH: 'Cash' as const,
   CHEQUE: 'Cheque' as const,
   NEFT: 'NEFT' as const,
+  UPI: 'UPI' as const,
 } as const;
 
-export const ALL_PAYMENT_MODES = [PAYMENT_MODES.CASH, PAYMENT_MODES.CHEQUE, PAYMENT_MODES.NEFT] as const;
+export const ALL_PAYMENT_MODES = [PAYMENT_MODES.CASH, PAYMENT_MODES.CHEQUE, PAYMENT_MODES.NEFT, PAYMENT_MODES.UPI] as const;
 
 export type PaymentMode = typeof ALL_PAYMENT_MODES[number];
 
 // Helper to check if cheque/reference number is needed
 export const requiresReferenceNumber = (mode: string): boolean => {
-  return mode === PAYMENT_MODES.CHEQUE || mode === PAYMENT_MODES.NEFT;
+  return mode === PAYMENT_MODES.CHEQUE || mode === PAYMENT_MODES.NEFT || mode === PAYMENT_MODES.UPI;
 };
 
 // --------------- Cash Transaction Types ---------------
@@ -208,6 +223,7 @@ export const INCOME_CATEGORIES = [
   { value: 'Picnic', label: 'Picnic' },
   { value: 'Bijoya Sommeloni', label: 'Bijoya Sommeloni' },
   { value: 'Dandiya Ticket', label: 'Dandiya Ticket' },
+  { value: 'Pujo Donation', label: 'Pujo Donation' },
 ] as const;
 
 export const EXPENSE_CATEGORIES = [

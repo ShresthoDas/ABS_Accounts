@@ -7,13 +7,11 @@ import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, EXPENSE_CATEGORIES, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, EXPENSE_CATEGORIES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
 import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
-
-type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function ExpenseTrackerPage() {
   const { user } = useAuth();
@@ -30,7 +28,7 @@ export default function ExpenseTrackerPage() {
   const [name, setName] = useState("");
   const [panNumber, setPanNumber] = useState("");
   const [amount, setAmount] = useState("");
-  const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
+  const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [cashPersonName, setCashPersonName] = useState("");
@@ -133,7 +131,7 @@ export default function ExpenseTrackerPage() {
       newErrors.modeOfPayment = "Cash Withdrawal must use Cheque mode";
     }
 
-    if ((modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
+    if (requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
     }
 
@@ -193,7 +191,7 @@ export default function ExpenseTrackerPage() {
             panNumber,
             amount: expenseAmount,
             modeOfPayment,
-            chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+            chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
             inputBy,
             description: description.trim() || null,
             createdAt: new Date().toISOString(),
@@ -274,7 +272,7 @@ export default function ExpenseTrackerPage() {
     }
   };
 
-  const showChequeField = modeOfPayment === "Cheque" || modeOfPayment === "NEFT";
+  const showChequeField = requiresReferenceNumber(modeOfPayment);
 
   if (loading) {
     return (
@@ -360,18 +358,12 @@ export default function ExpenseTrackerPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                 <div className="flex space-x-6">
-                  <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="Cash" checked={modeOfPayment === "Cash"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>Cash</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="Cheque" checked={modeOfPayment === "Cheque"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>Cheque</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input type="radio" name="modeOfPayment" value="NEFT" checked={modeOfPayment === "NEFT"} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
-                    <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>NEFT</span>
-                  </label>
+                  {ALL_PAYMENT_MODES.map((mode) => (
+                    <label key={mode} className="flex items-center">
+                      <input type="radio" name="modeOfPayment" value={mode} checked={modeOfPayment === mode} onChange={() => { setModeOfPayment(mode); setErrors({ ...errors, modeOfPayment: "" }); }} disabled={isCashWithdrawal} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                      <span className={`ml-2 ${isCashWithdrawal ? 'text-gray-400' : 'text-gray-700'}`}>{mode}</span>
+                    </label>
+                  ))}
                 </div>
                 {errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}
                 {isCashWithdrawal && (

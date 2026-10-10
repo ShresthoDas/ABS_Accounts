@@ -7,7 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, EXPENSE_CATEGORIES } from "../../../utils/constants";
+import { dbPath, EXPENSE_CATEGORIES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
@@ -26,8 +26,6 @@ interface ExpenseItem {
   createdAt?: string;
   description?: string;
 }
-
-type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function ExpenseDetailPage() {
   const { user } = useAuth();
@@ -48,7 +46,7 @@ export default function ExpenseDetailPage() {
   const [panNumber, setPanNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
-  const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
+  const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [inputBy, setInputBy] = useState("");
   const [description, setDescription] = useState("");
@@ -115,7 +113,7 @@ export default function ExpenseDetailPage() {
         setPanNumber(expenseItem.panNumber || "");
         setAmount(expenseItem.amount?.toString() || "");
         setCategory(expenseItem.category || "");
-        setModeOfPayment((expenseItem.modeOfPayment as ModeOfPayment) || "");
+        setModeOfPayment((expenseItem.modeOfPayment as PaymentMode) || "");
         setChequeNumber(expenseItem.chequeNumber || "");
         setInputBy(expenseItem.inputBy || "");
         setDescription(expenseItem.description || "");
@@ -193,7 +191,7 @@ export default function ExpenseDetailPage() {
         amount: newAmount,
         category,
         modeOfPayment,
-        chequeNumber: (modeOfPayment === "Cheque" || modeOfPayment === "NEFT") ? chequeNumber : null,
+        chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
         inputBy: inputBy || userData.name,
         description: description.trim() || null,
         updatedAt: new Date().toISOString(),
@@ -296,22 +294,22 @@ export default function ExpenseDetailPage() {
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                   <div className="flex space-x-6">
-                    {(["Cash", "Cheque", "NEFT"] as ModeOfPayment[]).map((mop) => (
+                    {ALL_PAYMENT_MODES.map((mop) => (
                       <label key={mop} className="flex items-center">
-                        <input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => setModeOfPayment(e.target.value as ModeOfPayment)} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                        <input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={() => setModeOfPayment(mop)} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                         <span className="ml-2 text-gray-700">{mop}</span>
                       </label>
                     ))}
                   </div>
                 </div>
-                {(modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && (
+                {requiresReferenceNumber(modeOfPayment) && (
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>
                 )}
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description <span className="text-gray-400 text-xs">(optional)</span></label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter any additional details or notes" rows={2} /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Input By</label><input type="text" value={inputBy} onChange={(e) => setInputBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
                 <div className="flex gap-3">
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium disabled:opacity-50">{saving ? "Saving..." : "Save Changes"}</button>
-                  <button type="button" onClick={() => { setIsEditing(false); if (expense) { setDate(expense.date || ""); setBillNumber(expense.billNumber || ""); setName(expense.name || ""); setPanNumber(expense.panNumber || ""); setAmount(expense.amount?.toString() || ""); setCategory(expense.category || ""); setModeOfPayment((expense.modeOfPayment as ModeOfPayment) || ""); setChequeNumber(expense.chequeNumber || ""); setInputBy(expense.inputBy || ""); setDescription(expense.description || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">Cancel</button>
+                  <button type="button" onClick={() => { setIsEditing(false); if (expense) { setDate(expense.date || ""); setBillNumber(expense.billNumber || ""); setName(expense.name || ""); setPanNumber(expense.panNumber || ""); setAmount(expense.amount?.toString() || ""); setCategory(expense.category || ""); setModeOfPayment((expense.modeOfPayment as PaymentMode) || ""); setChequeNumber(expense.chequeNumber || ""); setInputBy(expense.inputBy || ""); setDescription(expense.description || ""); } }} className="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 font-medium">Cancel</button>
                 </div>
               </form>
             </div>

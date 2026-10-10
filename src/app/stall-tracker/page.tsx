@@ -8,15 +8,13 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, PAYMENT_MODES, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, ALL_PAYMENT_MODES, PaymentMode, STALL_TYPES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
 import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
-
-type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 export default function StallTrackerPage() {
   const { user } = useAuth();
@@ -247,7 +245,7 @@ export default function StallTrackerPage() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Paid Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={paidAmount} onChange={(e) => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`} placeholder="Enter paid amount" step="0.01" min="0" />{errors.paidAmount && <p className="mt-1 text-sm text-red-500">{errors.paidAmount}</p>}</div>
               {(total > 0) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">Pending Amount</label><div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 ${pending > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}`}>₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>)}
               {showPaymentDetails && (<>
-                <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => { setModeOfPayment(e.target.value as PaymentMode); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>{errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label><div className="flex space-x-6">{ALL_PAYMENT_MODES.map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={() => { setModeOfPayment(mop); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>{errors.modeOfPayment && <p className="mt-1 text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
                 {modeOfPayment === "Cash" && (
                   <CashPersonField
                     modeOfPayment={modeOfPayment}
