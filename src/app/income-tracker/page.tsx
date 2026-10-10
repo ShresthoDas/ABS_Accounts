@@ -8,13 +8,11 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get, update } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, getCurrentYearShort, INCOME_CATEGORIES, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, getCurrentYearShort, INCOME_CATEGORIES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
 import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
-
-type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
 
 export default function IncomeTrackerPage() {
   const { user } = useAuth();
@@ -32,7 +30,7 @@ export default function IncomeTrackerPage() {
   const [panNumber, setPanNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
-  const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
+  const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -117,7 +115,7 @@ export default function IncomeTrackerPage() {
       newErrors.modeOfPayment = "Please select a mode of payment";
     }
 
-    if ((modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && !chequeNumber.trim()) {
+    if (requiresReferenceNumber(modeOfPayment) && !chequeNumber.trim()) {
       newErrors.chequeNumber = "Cheque Number is mandatory for " + modeOfPayment;
     }
 
@@ -153,7 +151,7 @@ export default function IncomeTrackerPage() {
           amount: incomeAmount,
           category,
           modeOfPayment,
-          chequeNumber: modeOfPayment === "Cheque" || modeOfPayment === "NEFT" ? chequeNumber : null,
+          chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
           referredBy: referredBy.trim() || null,
           inputBy,
           createdAt: new Date().toISOString(),
@@ -272,7 +270,7 @@ export default function IncomeTrackerPage() {
     };
   }, [name]);
 
-  const showChequeField = modeOfPayment === "Cheque" || modeOfPayment === "NEFT";
+  const showChequeField = requiresReferenceNumber(modeOfPayment);
 
   // PDF Preview Modal State
   const [showPreview, setShowPreview] = useState(false);
@@ -367,9 +365,9 @@ export default function IncomeTrackerPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                 <div className="flex space-x-6">
-                  {(["Cash", "Cheque", "NEFT"] as ModeOfPayment[]).map((mop) => (
+                  {ALL_PAYMENT_MODES.map((mop) => (
                     <label key={mop} className="flex items-center">
-                      <input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => { setModeOfPayment(e.target.value as ModeOfPayment); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
+                      <input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={() => { setModeOfPayment(mop); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                       <span className="ml-2 text-gray-700">{mop}</span>
                     </label>
                   ))}

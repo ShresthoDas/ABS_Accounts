@@ -191,15 +191,16 @@ export const PAYMENT_MODES = {
   CASH: 'Cash' as const,
   CHEQUE: 'Cheque' as const,
   NEFT: 'NEFT' as const,
+  UPI: 'UPI' as const,
 } as const;
 
-export const ALL_PAYMENT_MODES = [PAYMENT_MODES.CASH, PAYMENT_MODES.CHEQUE, PAYMENT_MODES.NEFT] as const;
+export const ALL_PAYMENT_MODES = [PAYMENT_MODES.CASH, PAYMENT_MODES.CHEQUE, PAYMENT_MODES.NEFT, PAYMENT_MODES.UPI] as const;
 
 export type PaymentMode = typeof ALL_PAYMENT_MODES[number];
 
 // Helper to check if cheque/reference number is needed
 export const requiresReferenceNumber = (mode: string): boolean => {
-  return mode === PAYMENT_MODES.CHEQUE || mode === PAYMENT_MODES.NEFT;
+  return mode === PAYMENT_MODES.CHEQUE || mode === PAYMENT_MODES.NEFT || mode === PAYMENT_MODES.UPI;
 };
 
 // --------------- Cash Transaction Types ---------------
@@ -222,6 +223,7 @@ export const INCOME_CATEGORIES = [
   { value: 'Picnic', label: 'Picnic' },
   { value: 'Bijoya Sommeloni', label: 'Bijoya Sommeloni' },
   { value: 'Dandiya Ticket', label: 'Dandiya Ticket' },
+  { value: 'Pujo Donation', label: 'Pujo Donation' },
 ] as const;
 
 export const EXPENSE_CATEGORIES = [

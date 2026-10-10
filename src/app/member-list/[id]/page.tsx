@@ -8,7 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { logAudit } from "../../../utils/auditLog";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
-import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS } from "../../../utils/constants";
+import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
@@ -48,7 +48,7 @@ export default function MemberDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [paymentModeOfPayment, setPaymentModeOfPayment] = useState("Cash");
+  const [paymentModeOfPayment, setPaymentModeOfPayment] = useState<PaymentMode>(ALL_PAYMENT_MODES[0]);
   const [paymentChequeNumber, setPaymentChequeNumber] = useState("");
   const { selectedYear } = useFinancialYear();
 
@@ -783,12 +783,16 @@ export default function MemberDetailPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mode of Payment</label>
-                  <input
-                    type="text"
+                  <select
                     value={modeOfPayment}
                     onChange={(e) => setModeOfPayment(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Select payment mode</option>
+                    {ALL_PAYMENT_MODES.map((mode) => (
+                      <option key={mode} value={mode}>{mode}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -1057,19 +1061,19 @@ export default function MemberDetailPage() {
                     <select
                       value={paymentModeOfPayment}
                       onChange={(e) => {
-                        setPaymentModeOfPayment(e.target.value);
+                        setPaymentModeOfPayment(e.target.value as PaymentMode);
                         if (e.target.value === "Cash") {
                           setPaymentChequeNumber("");
                         }
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     >
-                      <option value="Cash">Cash</option>
-                      <option value="Cheque">Cheque</option>
-                      <option value="NEFT">NEFT</option>
+                      {ALL_PAYMENT_MODES.map((mode) => (
+                        <option key={mode} value={mode}>{mode}</option>
+                      ))}
                     </select>
                   </div>
-                  {paymentModeOfPayment !== "Cash" && (
+                  {requiresReferenceNumber(paymentModeOfPayment) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Cheque/Reference Number <span className="text-red-500">*</span>
@@ -1079,7 +1083,7 @@ export default function MemberDetailPage() {
                         value={paymentChequeNumber}
                         onChange={(e) => setPaymentChequeNumber(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                        required={paymentModeOfPayment !== "Cash"}
+                        required={requiresReferenceNumber(paymentModeOfPayment)}
                       />
                     </div>
                   )}
@@ -1090,7 +1094,7 @@ export default function MemberDetailPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
-                      if (paymentModeOfPayment !== "Cash" && !paymentChequeNumber.trim()) {
+                      if (requiresReferenceNumber(paymentModeOfPayment) && !paymentChequeNumber.trim()) {
                         alert("Please enter the Cheque/Reference number.");
                         return;
                       }

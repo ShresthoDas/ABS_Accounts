@@ -8,7 +8,7 @@ import {
   dbPath,
   DEFAULTS,
   getCurrentYearString,
-  PAYMENT_MODES,
+  ALL_PAYMENT_MODES,
   requiresReferenceNumber,
   ROUTES,
 } from "../../utils/constants";
@@ -353,7 +353,7 @@ export default function SignUpPage() {
                   required
                 >
                   <option value="">Select payment mode</option>
-                  {Object.values(PAYMENT_MODES).map((mode) => (
+                  {ALL_PAYMENT_MODES.map((mode) => (
                     <option key={mode} value={mode}>
                       {mode}
                     </option>

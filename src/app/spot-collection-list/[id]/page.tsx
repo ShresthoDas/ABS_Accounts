@@ -8,7 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove, push } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
+import { dbPath, ROUTES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, DEFAULTS, getCurrentYearShort } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
@@ -30,8 +30,6 @@ interface SpotCollectionItem {
   createdAt?: string;
   [key: string]: any;
 }
-
-type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 const SPOT_COLLECTION_ALLOWED_TYPES = ["Accounts", "GB", "Front Office"];
 
@@ -307,7 +305,7 @@ export default function SpotCollectionDetailPage() {
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">PAN Number <span className="text-red-500">*</span></label><input type="text" value={panNumber} onChange={(e) => setPanNumber(e.target.value.toUpperCase())} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" maxLength={10} required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹) <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" step="0.01" min="0" required /></div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
-                  <div className="flex space-x-6">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="editMoP" value={mop} checked={modeOfPayment === mop} onChange={(e) => setModeOfPayment(e.target.value as PaymentMode)} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>
+                  <div className="flex space-x-6">{ALL_PAYMENT_MODES.map((mop) => (<label key={mop} className="flex items-center"><input type="radio" name="editMoP" value={mop} checked={modeOfPayment === mop} onChange={() => setModeOfPayment(mop)} className="h-4 w-4 text-blue-600 focus:ring-blue-500" /><span className="ml-2 text-gray-700">{mop}</span></label>))}</div>
                 </div>
                 {requiresReferenceNumber(modeOfPayment) && (<div><label className="block text-sm font-medium text-gray-700 mb-1">{modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span></label><input type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required /></div>)}
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Input By</label><input type="text" value={inputBy} onChange={(e) => setInputBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>

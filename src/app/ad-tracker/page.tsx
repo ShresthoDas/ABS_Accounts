@@ -8,15 +8,13 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, hasAccess, AD_TYPES, PAYMENT_MODES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, ROUTES, hasAccess, AD_TYPES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
 import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
-type PaymentMode = "Cash" | "Cheque" | "NEFT";
-
 export default function AdTrackerPage() {
   const { user } = useAuth();
   const { selectedYear } = useFinancialYear();
@@ -180,7 +178,7 @@ export default function AdTrackerPage() {
               <div><label className="block text-sm font-medium">Total Amount *</label><input type="number" value={totalAmount} onChange={e => setTotalAmount(e.target.value)} className={`w-full px-3 py-2 border rounded-md ${errors.totalAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.totalAmount && <p className="text-sm text-red-500">{errors.totalAmount}</p>}</div>
               <div><label className="block text-sm font-medium">Paid Amount *</label><input type="number" value={paidAmount} onChange={e => { setPaidAmount(e.target.value); setErrors({ ...errors, paidAmount: "" }); }} className={`w-full px-3 py-2 border rounded-md ${errors.paidAmount ? "border-red-500" : "border-gray-300"}`} step="0.01" min="0" />{errors.paidAmount && <p className="text-sm text-red-500">{errors.paidAmount}</p>}</div>
               {(total > 0) && (<div><label className="block text-sm font-medium">Pending</label><div className={`w-full px-3 py-2 border rounded-md bg-gray-100 ${pending > 0 ? "text-red-600" : "text-green-600"}`}>₹ {Math.max(0, pending).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>)}
-              {paid > 0 && (<><div><label className="block text-sm font-medium">Mode *</label><div className="flex gap-4">{(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map(m => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => setModeOfPayment(m)} className="h-4 w-4" /><span className="ml-1">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
+              {paid > 0 && (<><div><label className="block text-sm font-medium">Mode *</label><div className="flex gap-4">{ALL_PAYMENT_MODES.map(m => (<label key={m} className="flex items-center"><input type="radio" name="mop" value={m} checked={modeOfPayment === m} onChange={() => setModeOfPayment(m)} className="h-4 w-4" /><span className="ml-1">{m}</span></label>))}</div>{errors.modeOfPayment && <p className="text-sm text-red-500">{errors.modeOfPayment}</p>}</div>
                 {modeOfPayment === "Cash" && (
                   <CashPersonField
                     modeOfPayment={modeOfPayment}

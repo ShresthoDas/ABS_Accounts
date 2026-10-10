@@ -8,7 +8,7 @@ import { db } from "../../../firebase/config";
 import { ref, get, set, update, remove } from "firebase/database";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { logAudit } from "../../../utils/auditLog";
-import { dbPath, DEFAULTS, INCOME_CATEGORIES } from "../../../utils/constants";
+import { dbPath, DEFAULTS, INCOME_CATEGORIES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
 import { lookupPanByName, savePatronIfNeeded } from "../../../utils/panLookup";
 
@@ -37,8 +37,6 @@ interface IncomeItem {
   membershipAmount?: number;
 }
 
-type ModeOfPayment = "Cash" | "Cheque" | "NEFT";
-
 export default function IncomeDetailPage() {
   const { user } = useAuth();
   const { selectedYear } = useFinancialYear();
@@ -62,7 +60,7 @@ export default function IncomeDetailPage() {
   const [panNumber, setPanNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
-  const [modeOfPayment, setModeOfPayment] = useState<ModeOfPayment | "">("");
+  const [modeOfPayment, setModeOfPayment] = useState<PaymentMode | "">("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [referredBy, setReferredBy] = useState("");
   const [inputBy, setInputBy] = useState("");
@@ -133,7 +131,7 @@ export default function IncomeDetailPage() {
         setPanNumber(incomeItem.panNumber || "");
         setAmount(incomeItem.amount?.toString() || "");
         setCategory(incomeItem.category || "");
-        setModeOfPayment((incomeItem.modeOfPayment as ModeOfPayment) || "");
+        setModeOfPayment((incomeItem.modeOfPayment as PaymentMode) || "");
         setChequeNumber(incomeItem.chequeNumber || "");
         setReferredBy(incomeItem.referredBy || "");
         setInputBy(incomeItem.inputBy || "");
@@ -219,7 +217,7 @@ export default function IncomeDetailPage() {
         amount: newAmount,
         category,
         modeOfPayment,
-        chequeNumber: (modeOfPayment === "Cheque" || modeOfPayment === "NEFT") ? chequeNumber : null,
+        chequeNumber: requiresReferenceNumber(modeOfPayment) ? chequeNumber : null,
         referredBy: referredBy.trim() || null,
         inputBy: inputBy || userData.name,
         updatedAt: new Date().toISOString(),
@@ -486,14 +484,14 @@ export default function IncomeDetailPage() {
                     Mode of Payment <span className="text-red-500">*</span>
                   </label>
                   <div className="flex space-x-6">
-                    {(["Cash", "Cheque", "NEFT"] as ModeOfPayment[]).map((mop) => (
+                    {ALL_PAYMENT_MODES.map((mop) => (
                       <label key={mop} className="flex items-center">
                         <input
                           type="radio"
                           name="modeOfPayment"
                           value={mop}
                           checked={modeOfPayment === mop}
-                          onChange={(e) => setModeOfPayment(e.target.value as ModeOfPayment)}
+                          onChange={() => setModeOfPayment(mop)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                         />
                         <span className="ml-2 text-gray-700">{mop}</span>
@@ -502,7 +500,7 @@ export default function IncomeDetailPage() {
                   </div>
                 </div>
 
-                {(modeOfPayment === "Cheque" || modeOfPayment === "NEFT") && (
+                {requiresReferenceNumber(modeOfPayment) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       {modeOfPayment === "Cheque" ? "Cheque" : "Reference"} Number <span className="text-red-500">*</span>
@@ -558,7 +556,7 @@ export default function IncomeDetailPage() {
                         setPanNumber(income.panNumber || "");
                         setAmount(income.amount?.toString() || "");
                         setCategory(income.category || "");
-                        setModeOfPayment((income.modeOfPayment as ModeOfPayment) || "");
+                        setModeOfPayment((income.modeOfPayment as PaymentMode) || "");
                         setChequeNumber(income.chequeNumber || "");
                         setInputBy(income.inputBy || "");
                       }

@@ -8,15 +8,13 @@ import { db } from "../../firebase/config";
 import { ref, push, set, get } from "firebase/database";
 import { generateReceiptPDF } from "../../utils/generateReceiptPDF";
 import { logAudit } from "../../utils/auditLog";
-import { dbPath, ROUTES, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
+import { dbPath, ROUTES, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber, DEFAULTS, getCurrentYearShort, CASH_TRANSACTION_TYPES } from "../../utils/constants";
 import { useFinancialYear } from "../../context/FinancialYearContext";
 import CashPersonField from "../../components/CashPersonField";
 import { recordCashTransaction } from "../../utils/cashManagement";
 import { lookupPanByName, savePatronIfNeeded } from "../../utils/panLookup";
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
-
-type PaymentMode = "Cash" | "Cheque" | "NEFT";
 
 const SPOT_COLLECTION_ALLOWED_TYPES = ["Accounts", "GB", "Front Office"];
 
@@ -306,7 +304,7 @@ export default function SpotCollectionTrackerPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Mode of Payment <span className="text-red-500">*</span></label>
                 <div className="flex space-x-6">
-                  {(["Cash", "Cheque", "NEFT"] as PaymentMode[]).map((mop) => (
+                  {ALL_PAYMENT_MODES.map((mop) => (
                     <label key={mop} className="flex items-center">
                       <input type="radio" name="modeOfPayment" value={mop} checked={modeOfPayment === mop} onChange={(e) => { setModeOfPayment(e.target.value as PaymentMode); setErrors({ ...errors, modeOfPayment: "" }); }} className="h-4 w-4 text-blue-600 focus:ring-blue-500" />
                       <span className="ml-2 text-gray-700">{mop}</span>

@@ -186,7 +186,7 @@ export default function MemberCollectionDetailPage() {
         memberKey: member.key,
         memberId: member.memberId,
         name: member.name,
-        mobileNumber: member.mobileNumber,
+        mobileNumber: member.mobileNumber || '0000000000',
         ...formData,
         updatedAt: new Date().toISOString(),
         updatedBy: user.uid,
