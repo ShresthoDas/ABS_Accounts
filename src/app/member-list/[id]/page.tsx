@@ -10,6 +10,8 @@ import { logAudit } from "../../../utils/auditLog";
 import { generateReceiptPDF } from "../../../utils/generateReceiptPDF";
 import { dbPath, getCurrentYearString, getCurrentYearShort, DEFAULTS, ALL_PAYMENT_MODES, PaymentMode, requiresReferenceNumber } from "../../../utils/constants";
 import { useFinancialYear } from "../../../context/FinancialYearContext";
+import CashPersonField from "../../../components/CashPersonField";
+import { recordCashTransaction } from "../../../utils/cashManagement";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
@@ -27,6 +29,7 @@ interface MemberItem {
   modeOfPayment?: string;
   amount?: string | number;
   chequeNumber?: string | null;
+  cashPersonName?: string | null;
   referredBy?: string | null;
   inputBy?: string;
   createdBy?: string;
@@ -50,6 +53,8 @@ export default function MemberDetailPage() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentModeOfPayment, setPaymentModeOfPayment] = useState<PaymentMode>(ALL_PAYMENT_MODES[0]);
   const [paymentChequeNumber, setPaymentChequeNumber] = useState("");
+  const [paymentCashPersonName, setPaymentCashPersonName] = useState("");
+  const [paymentCashPersonError, setPaymentCashPersonError] = useState("");
   const { selectedYear } = useFinancialYear();
 
   const router = useRouter();
@@ -178,6 +183,7 @@ export default function MemberDetailPage() {
       category: DEFAULTS.MEMBERSHIP_INCOME_CATEGORY,
       modeOfPayment: memberData.modeOfPayment || "Cash",
       chequeNumber: memberData.chequeNumber || null,
+      cashPersonName: memberData.cashPersonName || null,
       inputBy: memberData.inputBy || changedBy,
       createdAt: new Date().toISOString(),
       createdBy: changedByUid,
@@ -255,6 +261,11 @@ export default function MemberDetailPage() {
 
   const handleUpdatePaymentStatus = async () => {
     if (!member || !userData || !user) return;
+    if (paymentModeOfPayment === "Cash" && !paymentCashPersonName.trim()) {
+      setPaymentCashPersonError("Cash Received By is mandatory for Cash payments.");
+      return;
+    }
+
     try {
       setPaymentProcessing(true);
       const currentYear = getCurrentYearString();
@@ -282,6 +293,7 @@ export default function MemberDetailPage() {
           modeOfPayment: paymentModeOfPayment,
           amount: totalAmount,
           chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+          cashPersonName: paymentModeOfPayment === "Cash" ? paymentCashPersonName.trim() : null,
           inputBy: userData.name || member.inputBy,
           registrationFee: hasRegistrationFee,
           registrationFeeAmount: regFeeAmount,
@@ -304,6 +316,7 @@ export default function MemberDetailPage() {
         incomeKey: incomeKey as string,
         modeOfPayment: paymentModeOfPayment,
         chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null),
+        cashPersonName: paymentModeOfPayment === "Cash" ? paymentCashPersonName.trim() : null,
         registrationFee: hasRegistrationFee,
         registrationFeeAmount: regFeeAmount,
         updatedAt: new Date().toISOString(),
@@ -321,11 +334,29 @@ export default function MemberDetailPage() {
         entityType: "Member",
         entityId: params.id as string,
         previousData: oldData,
-        newData: { ...oldData, paymentStatus: true, amount: totalAmount, receiptNumber: receiptNum, incomeKey: incomeKey as string, modeOfPayment: paymentModeOfPayment, chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null), registrationFee: hasRegistrationFee, registrationFeeAmount: regFeeAmount },
+        newData: { ...oldData, paymentStatus: true, amount: totalAmount, receiptNumber: receiptNum, incomeKey: incomeKey as string, modeOfPayment: paymentModeOfPayment, chequeNumber: paymentModeOfPayment === "Cash" ? null : (paymentChequeNumber.trim() || null), cashPersonName: paymentModeOfPayment === "Cash" ? paymentCashPersonName.trim() : null, registrationFee: hasRegistrationFee, registrationFeeAmount: regFeeAmount },
         changedBy: userData.name || user.email || "Unknown",
         changedByUid: user.uid,
         changedAt: new Date().toISOString(),
       });
+
+      if (paymentModeOfPayment === "Cash") {
+        await recordCashTransaction(
+          {
+            date: new Date().toISOString().split("T")[0],
+            amount: totalAmount,
+            transactionType: "CashIn",
+            cashPersonName: paymentCashPersonName.trim(),
+            sourceEntity: "Member",
+            sourceEntityKey: incomeKey as string,
+            sourceReference: receiptNum,
+            inputBy: userData.name || member.inputBy || "",
+            createdBy: user.uid,
+            createdAt: new Date().toISOString(),
+          },
+          currentYear
+        );
+      }
 
       // Generate receipt PDF
       generateReceiptPDF({
@@ -880,6 +911,8 @@ export default function MemberDetailPage() {
                     onClick={() => {
                       setPaymentModeOfPayment("Cash");
                       setPaymentChequeNumber("");
+                      setPaymentCashPersonName("");
+                      setPaymentCashPersonError("");
                       setShowPaymentConfirm(true);
                     }}
                     className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 font-medium"
@@ -1062,6 +1095,7 @@ export default function MemberDetailPage() {
                       value={paymentModeOfPayment}
                       onChange={(e) => {
                         setPaymentModeOfPayment(e.target.value as PaymentMode);
+                        setPaymentCashPersonError("");
                         if (e.target.value === "Cash") {
                           setPaymentChequeNumber("");
                         }
@@ -1073,6 +1107,17 @@ export default function MemberDetailPage() {
                       ))}
                     </select>
                   </div>
+                  <CashPersonField
+                    modeOfPayment={paymentModeOfPayment}
+                    transactionType="CashIn"
+                    cashPersonName={paymentCashPersonName}
+                    setCashPersonName={(name) => {
+                      setPaymentCashPersonName(name);
+                      setPaymentCashPersonError("");
+                    }}
+                    error={paymentCashPersonError}
+                    setError={(_, message) => setPaymentCashPersonError(message)}
+                  />
                   {requiresReferenceNumber(paymentModeOfPayment) && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
