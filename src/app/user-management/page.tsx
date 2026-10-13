@@ -6,7 +6,8 @@ import { getUserDoc } from "../../utils/getUserDoc";
 import { useRouter } from "next/navigation";
 import { db } from "../../firebase/config";
 import { ref, get } from "firebase/database";
-import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS, DB_PATHS } from "../../utils/constants";
+import { hasAccess, ROUTES, ALL_ADMIN_USER_TYPE_OPTIONS, DB_PATHS, dbPath } from "../../utils/constants";
+import { useFinancialYear } from "../../context/FinancialYearContext";
 
 interface UserRecord {
   key: string;
@@ -17,8 +18,19 @@ interface UserRecord {
   createdAt?: string;
 }
 
+interface MemberRecord {
+  key: string;
+  memberId?: string;
+  name?: string;
+  mobileNumber?: string | null;
+  panNumber?: string;
+  address?: string;
+  emailId?: string;
+}
+
 export default function UserManagementPage() {
   const { user } = useAuth();
+  const { selectedYear } = useFinancialYear();
   const router = useRouter();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +38,12 @@ export default function UserManagementPage() {
   // Create user form
   const [name, setName] = useState("");
   const [mobileNo, setMobileNo] = useState("");
+  const [selectedMember, setSelectedMember] = useState<MemberRecord | null>(null);
+  const [members, setMembers] = useState<MemberRecord[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState("");
+  const [nameFocused, setNameFocused] = useState(false);
+  const [memberId, setMemberId] = useState("");
   const [userType, setUserType] = useState("GB");
   const [createMessage, setCreateMessage] = useState("");
   const [createError, setCreateError] = useState("");
@@ -40,6 +58,46 @@ export default function UserManagementPage() {
   // Users list
   const [usersList, setUsersList] = useState<UserRecord[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!userData || !hasAccess(userData.userType)) return;
+
+    let isCurrent = true;
+    setMembersLoading(true);
+    setMembersError("");
+    setMembers([]);
+    setSelectedMember(null);
+    setName("");
+    setMobileNo("");
+    setMemberId("");
+
+    get(ref(db, dbPath.members(selectedYear)))
+      .then((snapshot) => {
+        if (!isCurrent) return;
+        if (!snapshot.exists()) {
+          setMembers([]);
+          return;
+        }
+
+        const data = snapshot.val() as Record<string, Omit<MemberRecord, "key">>;
+        const memberList = Object.entries(data)
+          .map(([key, member]) => ({ key, ...member }))
+          .filter((member) => typeof member.name === "string" && member.name.trim())
+          .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        setMembers(memberList);
+      })
+      .catch((error: unknown) => {
+        console.error("Error fetching members for user creation:", error);
+        if (isCurrent) setMembersError("Could not load members. User creation is unavailable.");
+      })
+      .finally(() => {
+        if (isCurrent) setMembersLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [userData, selectedYear]);
 
   useEffect(() => {
     if (user) {
@@ -93,6 +151,10 @@ export default function UserManagementPage() {
       setCreateError("Name is required.");
       return false;
     }
+    if (!selectedMember || selectedMember.name?.trim() !== name.trim()) {
+      setCreateError("Select a name from the member list before creating a user.");
+      return false;
+    }
     if (!mobileNo.trim()) {
       setCreateError("Mobile number is required.");
       return false;
@@ -111,6 +173,8 @@ export default function UserManagementPage() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
+    const memberToCreate = selectedMember;
+    if (!memberToCreate) return;
 
     setCreating(true);
     setCreateMessage("");
@@ -157,6 +221,7 @@ export default function UserManagementPage() {
           mobileNo: mobileNo.trim(),
           userType: userType,
           email: email,
+          memberId: memberToCreate.memberId || memberToCreate.key,
         }),
       });
 
@@ -170,6 +235,8 @@ export default function UserManagementPage() {
       setCreateMessage(`User created successfully! Email: ${email}, Password: ${password}`);
       setName("");
       setMobileNo("");
+      setSelectedMember(null);
+      setMemberId("");
       setUserType("GB");
 
       // Refresh users list
@@ -220,6 +287,10 @@ export default function UserManagementPage() {
       default: return "bg-gray-100 text-gray-800";
     }
   };
+
+  const matchingMembers = name.trim()
+    ? members.filter((member) => member.name?.toLowerCase().includes(name.trim().toLowerCase())).slice(0, 8)
+    : [];
 
   if (loading) {
     return (
@@ -287,14 +358,64 @@ export default function UserManagementPage() {
 
                   <div>
                     <label className="block mb-1 font-medium text-gray-700">Name *</label>
-                    <input
-                      type="text"
-                      className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter full name"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className="w-full border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Search member by name"
+                        value={name}
+                        onFocus={() => setNameFocused(true)}
+                        onBlur={() => setNameFocused(false)}
+                        onChange={e => {
+                          setName(e.target.value);
+                          setSelectedMember(null);
+                          setMobileNo("");
+                          setMemberId("");
+                          setCreateError("");
+                        }}
+                        autoComplete="off"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-expanded={nameFocused && matchingMembers.length > 0}
+                        aria-controls="user-member-suggestions"
+                        required
+                      />
+                      {nameFocused && matchingMembers.length > 0 && (
+                        <ul
+                          id="user-member-suggestions"
+                          role="listbox"
+                          className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-gray-300 bg-white py-1 shadow-lg"
+                        >
+                          {matchingMembers.map(member => (
+                            <li key={member.key} role="option" aria-selected={selectedMember?.key === member.key}>
+                              <button
+                                type="button"
+                                onMouseDown={event => event.preventDefault()}
+                                onClick={() => {
+                                  setSelectedMember(member);
+                                  setName(member.name?.trim() || "");
+                                  setMobileNo((member.mobileNumber || "").replace(/\D/g, "").slice(0, 10));
+                                  setMemberId(member.memberId || member.key);
+                                  setNameFocused(false);
+                                  setCreateError("");
+                                }}
+                                className="w-full px-3 py-2 text-left hover:bg-blue-50"
+                              >
+                                <span className="block text-sm font-medium text-gray-800">{member.name}</span>
+                                <span className="block text-xs text-gray-500">
+                                  {member.memberId ? `Member ID: ${member.memberId}` : "Member"}{member.mobileNumber ? ` · Mobile: ${member.mobileNumber}` : ""}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    {membersLoading && <p className="mt-1 text-xs text-gray-500">Loading members for {selectedYear}...</p>}
+                    {membersError && <p className="mt-1 text-xs text-red-600">{membersError}</p>}
+                    {nameFocused && name.trim() && !membersLoading && !membersError && matchingMembers.length === 0 && (
+                      <p className="mt-1 text-xs text-red-600">No matching member found. Only existing members can be created as users.</p>
+                    )}
                   </div>
 
                   <div>
@@ -307,8 +428,9 @@ export default function UserManagementPage() {
                       onChange={e => setMobileNo(e.target.value.replace(/\D/g, "").slice(0, 10))}
                       required
                     />
+                    {memberId && <p className="mt-1 text-xs text-gray-500">Member ID: {memberId}</p>}
                     <p className="text-xs text-gray-500 mt-1">
-                      User ID will be: {mobileNo ? `${mobileNo}@abs.com` : "mobile@abs.com"}, Password: Test123
+                      User ID will be: {mobileNo || "1231231231"}, Password: Test123
                     </p>
                   </div>
 
@@ -331,7 +453,7 @@ export default function UserManagementPage() {
                   <button
                     type="submit"
                     className="w-full bg-blue-600 text-white py-2.5 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium transition-colors duration-200 disabled:opacity-50"
-                    disabled={creating}
+                    disabled={creating || membersLoading || !!membersError || !selectedMember}
                   >
                     {creating ? "Creating User..." : "Create User"}
                   </button>
