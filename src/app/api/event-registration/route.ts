@@ -30,6 +30,25 @@ type RegistrationRecord = {
   ownerEmail?: string;
   updatedAt?: string;
 };
+
+const compareMemberIdsNumerically = (first: string, second: string) => {
+  const firstNumber = first.match(/\d+/)?.[0];
+  const secondNumber = second.match(/\d+/)?.[0];
+
+  if (firstNumber && secondNumber) {
+    const normalizedFirst = firstNumber.replace(/^0+/, "") || "0";
+    const normalizedSecond = secondNumber.replace(/^0+/, "") || "0";
+    if (normalizedFirst.length !== normalizedSecond.length) {
+      return normalizedFirst.length - normalizedSecond.length;
+    }
+    const numericComparison = normalizedFirst.localeCompare(normalizedSecond);
+    if (numericComparison !== 0) return numericComparison;
+  } else if (firstNumber || secondNumber) {
+    return firstNumber ? -1 : 1;
+  }
+
+  return first.localeCompare(second, undefined, { numeric: true, sensitivity: "base" });
+};
 type VerifiedIdentity = { uid: string; email: string };
 
 class ApiError extends Error {
@@ -264,7 +283,7 @@ export async function POST(request: NextRequest) {
         ? Object.values(records)
             .filter((member) => member.paymentStatus === true && member.memberId && member.name)
             .map((member) => ({ memberId: member.memberId, name: member.name }))
-            .sort((a, b) => a.memberId!.localeCompare(b.memberId!))
+            .sort((a, b) => compareMemberIdsNumerically(a.memberId!, b.memberId!))
         : [];
       return NextResponse.json({ members }, { headers: { "Cache-Control": "no-store" } });
     }

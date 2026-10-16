@@ -67,6 +67,7 @@ export default function EventRegistrationPage() {
   // Form state
   const [userType, setUserType] = useState<"member" | "non-member" | "">("");
   const [memberId, setMemberId] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
   const [name, setName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [eventName, setEventName] = useState("");
@@ -327,6 +328,7 @@ export default function EventRegistrationPage() {
     setEditingRegistration(registration);
     setUserType(registration.userType);
     setMemberId(registration.memberId || "");
+    setMemberSearch(registration.memberId || "");
     setName(registration.name || "");
     if (registration.userType === "non-member") setMobileNumber(registration.mobileNumber || "");
     setMemberData(paidMembers.find((member) => member.memberId === registration.memberId) || null);
@@ -457,6 +459,7 @@ export default function EventRegistrationPage() {
                     setShowSuccess(false);
                     setUserType("");
                     setMemberId("");
+                    setMemberSearch("");
                     setName("");
                     setMobileNumber("");
                     setEventName("");
@@ -532,6 +535,7 @@ export default function EventRegistrationPage() {
                           resetRegistrationLookup();
                           setErrors({});
                           setMemberId("");
+                          setMemberSearch("");
                           setName("");
                           setMobileNumber("");
                           setMemberValidated(false);
@@ -553,6 +557,7 @@ export default function EventRegistrationPage() {
                           resetRegistrationLookup();
                           setErrors({});
                           setMemberId("");
+                          setMemberSearch("");
                           setName("");
                           setMobileNumber("");
                           setMemberValidated(false);
@@ -572,10 +577,16 @@ export default function EventRegistrationPage() {
                     <h3 className="text-lg font-semibold text-gray-800">Member Verification</h3>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Member ID <span className="text-red-500">*</span></label>
-                      <select
-                        value={memberId}
+                      <input
+                        type="text"
+                        list="paid-member-options"
+                        value={memberSearch}
                         onChange={(e) => {
-                          const selectedMember = paidMembers.find((member) => member.memberId === e.target.value);
+                          const searchValue = e.target.value;
+                          const selectedMember = paidMembers.find(
+                            (member) => member.memberId.trim().toLowerCase() === searchValue.trim().toLowerCase()
+                          );
+                          setMemberSearch(searchValue);
                           setMemberId(selectedMember?.memberId || "");
                           setName(selectedMember?.name || "");
                           setMemberData(selectedMember || null);
@@ -584,17 +595,17 @@ export default function EventRegistrationPage() {
                           setErrors({ ...errors, memberId: "", name: "" });
                         }}
                         disabled={Boolean(editingRegistration) || membersLoading || paidMembers.length === 0}
+                        placeholder={membersLoading ? "Loading paid members..." : "Type a member ID to filter"}
+                        autoComplete="off"
                         className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.memberId ? "border-red-500" : "border-gray-300"}`}
-                      >
-                        <option value="">
-                          {membersLoading ? "Loading paid members..." : paidMembers.length ? "-- Select Member --" : "No paid members found"}
-                        </option>
+                      />
+                      <datalist id="paid-member-options">
                         {paidMembers.map((member) => (
-                          <option key={member.memberId} value={member.memberId}>{member.memberId} - {member.name}</option>
+                          <option key={member.memberId} value={member.memberId} label={member.name} />
                         ))}
-                      </select>
+                      </datalist>
                       {errors.memberId && <p className="mt-1 text-sm text-red-500">{errors.memberId}</p>}
-                      <p className="mt-1 text-xs text-gray-500">Existing registrations are searched automatically after you select a member.</p>
+                      <p className="mt-1 text-xs text-gray-500">Type a member ID to filter suggestions, or select a suggestion. Existing registrations are searched automatically.</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
